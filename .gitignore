@@ -14,7 +14,9 @@ build/
 
 # Secrets
 *firebase*.json
-src/main/resources/firebase-service-account.json
 
 # Tooling
 .omc/
+
+# Claude runtime
+.claude/scheduled_tasks.lock

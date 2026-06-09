@@ -1,0 +1,42 @@
+[versions]
+kotlin = "2.0.21"
+springBoot = "3.4.5"
+springDependencyManagement = "1.1.7"
+kover = "0.9.1"
+firebaseAdmin = "9.4.3"
+postgresql = "42.7.5"
+mockk = "1.13.13"
+testcontainers = "1.20.6"
+
+[libraries]
+# Spring (versions managed by Spring BOM via dependency-management plugin)
+spring-context = { module = "org.springframework:spring-context" }
+spring-jdbc = { module = "org.springframework:spring-jdbc" }
+spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-batch = { module = "org.springframework.boot:spring-boot-starter-batch" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
+spring-batch-test = { module = "org.springframework.batch:spring-batch-test" }
+
+# Drivers / external
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+firebase-admin = { module = "com.google.firebase:firebase-admin", version.ref = "firebaseAdmin" }
+
+# Kotlin test
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test" }
+
+# MockK
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
+
+# Testcontainers
+testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+kotlin-jpa = { id = "org.jetbrains.kotlin.plugin.jpa", version.ref = "kotlin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "springDependencyManagement" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

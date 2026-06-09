@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: team-neki-notification
+  batch:
+    job:
+      # Do not auto-run jobs on startup; jobs are launched explicitly (none defined yet in P0).
+      enabled: false
+    jdbc:
+      # A migration tool (Flyway/Liquibase) will own the BATCH_* schema; never auto-DDL on boot.
+      initialize-schema: never
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
