@@ -1,0 +1,20 @@
+# Gradle / Kotlin / Java
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+
+# Secrets
+*firebase*.json
+src/main/resources/firebase-service-account.json
+
+# Tooling
+.omc/
