@@ -63,7 +63,7 @@ class JdbcSendTargetReaderWeekendExploreTest {
             DROP TABLE IF EXISTS TB_USERS CASCADE;
             """.trimIndent(),
         )
-        val ddl = ClassPathResource("schema-shared.sql").inputStream.bufferedReader().use { it.readText() }
+        val ddl = ClassPathResource("reader-test-fixture.sql").inputStream.bufferedReader().use { it.readText() }
         jdbc.jdbcTemplate.execute(ddl)
     }
 

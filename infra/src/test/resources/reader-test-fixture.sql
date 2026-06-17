@@ -1,9 +1,8 @@
--- 공유 DB 스키마 (테스트 시드용).
--- 출처: 공유 서비스 DDL. #290 미병합분(withdrawn_at)과 MARKETING 약관을 포함한다.
--- WARNING: FK 제약은 의도적으로 생략(테스트 시드 단순화). 실제 공유 DB에는
---   TB_USER_TERM_AGREEMENT.user_id→TB_USERS.id, .term_id→TB_TERM.id FK가 존재한다.
---   공유 서버(Team-Neki-Server) DDL 변경 시 이 파일을 함께 동기화할 것.
---   마지막 동기화 기준: Team-Neki-Server V18 + #290(withdrawn_at, MARKETING 약관).
+-- reader 통합테스트용 테스트 픽스처 — 공유 DB의 *권위 있는 DDL이 아니다*.
+-- 권위 스키마는 Team-Neki-Server( :modules:postgres Flyway V1~V18 )가 소유한다.
+-- 여기에는 JdbcSendTargetReader가 *읽는* 테이블/컬럼의 최소 부분집합만 둔다(전체 스키마 사본 아님).
+-- #290 미병합분(withdrawn_at)·MARKETING 약관 포함. FK는 픽스처 단순화로 생략.
+-- 백엔드 스키마 변경 시 이 픽스처를 함께 동기화할 것. 마지막 기준: Team-Neki-Server V18 + #290.
 CREATE TABLE TB_USERS (
   id BIGSERIAL PRIMARY KEY,
   email VARCHAR(255), password VARCHAR(255), oid VARCHAR(255), name VARCHAR(100),
