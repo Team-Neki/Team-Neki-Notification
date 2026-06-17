@@ -22,6 +22,7 @@ dependencies {
     runtimeOnly(libs.postgresql)
     implementation(libs.firebase.admin)
 
+    testImplementation(libs.kotlin.test)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.junit.jupiter)
