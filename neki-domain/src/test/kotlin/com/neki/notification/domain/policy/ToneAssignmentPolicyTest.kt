@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 /**
  * Acceptance criterion #2: ToneAssignmentPolicy.assign.
  *
- * copy-spec §5: tone = MessageTone.entries[ Math.floorMod(userId, 3) ]
+ * tone = MessageTone.entries[ Math.floorMod(userId, 3) ]
  *   floorMod == 0 -> INFORMATIVE, 1 -> FRIENDLY, 2 -> SUGGESTIVE
  * userId is Long; negative userIds must use floorMod (no crash, no negative index).
  *

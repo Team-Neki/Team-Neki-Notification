@@ -10,13 +10,13 @@ import java.time.LocalDate
 /**
  * 공유 DB(JDBC) 기반 [SendTargetReader] 구현.
  *
- * 설계 메모(P3):
+ * 설계 메모:
  * - 동의 투영은 필터가 아니다: MARKETING 약관 동의/철회/미동의/비-MARKETING 동의를 모두
  *   `pushConsent` 값으로 투영하되 결과에서 제외하지 않는다(동의 최종 재확인은 Processor 책임).
  * - keyset 페이징은 `user_id` 오름차순 + `afterUserId` 커서로 수행한다.
  * - fcmToken은 #291(토큰 저장소) 미존재로 빈 문자열("")을 투영한다.
  * - variables는 빈 맵으로 둔다(문구 변수 조달은 후속).
- * - 현재 RED 단계에서는 WEEKEND_EXPLORE 경로만 다룬다(WEEKLY/HOLIDAY는 P3b/P3c).
+ * - 현재는 WEEKEND_EXPLORE 경로만 구현되어 있다(WEEKLY/HOLIDAY는 미구현).
  *
  * Spring 어노테이션을 두지 않은 순수 클래스다(빈 등록은 후속 config).
  */
@@ -30,8 +30,8 @@ class JdbcSendTargetReader(
         limit: Int,
     ): List<SendTarget> = when (type) {
         NotificationType.WEEKEND_EXPLORE -> readWeekendExplore(afterUserId, limit)
-        NotificationType.WEEKLY_REMINDER -> TODO("P3b")
-        NotificationType.HOLIDAY_EXPLORE -> TODO("P3c")
+        NotificationType.WEEKLY_REMINDER -> TODO("WEEKLY_REMINDER reader not implemented yet")
+        NotificationType.HOLIDAY_EXPLORE -> TODO("HOLIDAY_EXPLORE reader not implemented yet")
     }
 
     /**

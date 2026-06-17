@@ -10,9 +10,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * MessageRenderer tests (copy-spec §4 templates + §6 substitution/fallback rules).
+ * MessageRenderer tests (templates + substitution/fallback rules).
  *
- * String literals are copied VERBATIM from notification-copy-spec.md §4.
+ * String literals are copied VERBATIM from notification-copy-spec.md.
  * Watch the Korean spacing and the trailing "!" in HOLIDAY_EXPLORE / FRIENDLY body.
  */
 class MessageRendererTest {
@@ -54,9 +54,9 @@ class MessageRendererTest {
             assertFalse(result.variableApplied)
         }
 
-        // WEEKLY_REMINDER / SUGGESTIVE requires a variable -> covered in #4 (happy) and #5 (fallback).
+        // WEEKLY_REMINDER / SUGGESTIVE requires a variable -> covered in the happy and fallback cases.
 
-        // --- WEEKEND_EXPLORE (no variables at all, copy-spec §3) ---------------------------
+        // --- WEEKEND_EXPLORE (no variables at all) ---------------------------
 
         @Test
         fun `WEEKEND_EXPLORE INFORMATIVE`() {
@@ -163,7 +163,7 @@ class MessageRendererTest {
     }
 
     // =====================================================================================
-    // #5: Fallback when required variable missing (copy-spec §6 rule 3).
+    // Fallback when required variable missing.
     //     Cover all "value absent" forms: key absent, null, "", "   ".
     // =====================================================================================
 
@@ -275,7 +275,7 @@ class MessageRendererTest {
             for (tone in MessageTone.entries) {
                 val result = MessageRenderer.render(NotificationType.WEEKEND_EXPLORE, tone, populated)
 
-                assertFalse(result.variableApplied, "WEEKEND_EXPLORE has no variables (copy-spec §3): tone=$tone")
+                assertFalse(result.variableApplied, "WEEKEND_EXPLORE has no variables: tone=$tone")
                 assertEquals(tone, result.actualTone, "no fallback should occur for WEEKEND_EXPLORE: tone=$tone")
 
                 val (expectedTitle, expectedBody) = when (tone) {

@@ -11,9 +11,9 @@ import com.neki.notification.domain.model.RenderedMessage
  */
 sealed interface ProcessOutcome {
     /**
-     * @property assignedTone copy-spec §5의 유저 결정적 배정 톤(A/B 코호트 키). 폴백 전 값.
+     * @property assignedTone 유저 결정적 배정 톤(A/B 코호트 키). 폴백 전 값.
      * @property message 렌더링 결과. [RenderedMessage.actualTone]은 폴백 후 실제 발송 톤이며,
-     *   폴백이 없으면 [assignedTone]과 같다. notification_log.message_tone에는 actualTone을 저장한다(P4).
+     *   폴백이 없으면 [assignedTone]과 같다. notification_log.message_tone에는 actualTone을 저장한다.
      */
     data class Send(
         val assignedTone: MessageTone,

@@ -11,11 +11,11 @@ interface NotificationSender {
 }
 
 /**
- * 실제 전송 시도의 결과. 재시도/이력 기록 정책(P4)에서 사용한다.
+ * 실제 전송 시도의 결과. 재시도/이력 기록 정책에서 사용한다.
  *
  * SKIPPED는 여기 없다 — 발송 스킵은 [com.neki.notification.domain.service.ProcessOutcome.Skip]
  * 경로로 NotificationSender를 거치기 전에 결정되기 때문이다. notification_log.fcm_result의
- * SKIPPED 값(설계 §6)은 P4에서 Skip outcome을 기록할 때 별도로 매핑한다.
+ * SKIPPED 값은 Skip outcome을 기록할 때 별도로 매핑한다.
  */
 enum class SendResult {
     SUCCESS,

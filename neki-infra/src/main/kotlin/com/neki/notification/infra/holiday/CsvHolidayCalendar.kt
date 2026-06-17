@@ -8,7 +8,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
 /**
- * CSV 기반 [HolidayCalendar] 어댑터 (P5).
+ * CSV 기반 [HolidayCalendar] 어댑터.
  *
  * 설계 메모:
  * - **순수 Kotlin** — Spring 어노테이션/컨텍스트에 의존하지 않는다(빈 등록은 별도 config에서).
@@ -39,8 +39,8 @@ class CsvHolidayCalendar(
         private val ISO_DATE: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
         /**
-         * 원본 라인 리스트를 1-based 인덱스로 순회하며 파싱·검증한다.
          * 첫 번째 비-주석·비-빈 줄은 헤더로 간주하여 스킵한다.
+         * 오류 메시지의 라인 번호는 1-based 원본 라인 기준이다.
          */
         private fun parse(lines: List<String>): Map<LocalDate, Holiday> {
             val result = LinkedHashMap<LocalDate, Holiday>()

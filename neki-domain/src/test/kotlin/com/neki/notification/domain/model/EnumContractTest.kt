@@ -8,9 +8,9 @@ import kotlin.test.assertTrue
  * Acceptance criterion #1 + #7.
  *
  * Covers:
- *  - MessageTone declaration / entries order (load-bearing for tone assignment, copy-spec §5).
- *  - NotificationType.fallbackTone mapping (copy-spec §1).
- *  - MessageVariable token strings (copy-spec §3).
+ *  - MessageTone declaration / entries order (load-bearing for tone assignment).
+ *  - NotificationType.fallbackTone mapping.
+ *  - MessageVariable token strings.
  *  - SendTarget construction & default empty variables map.
  */
 class EnumContractTest {
@@ -22,7 +22,7 @@ class EnumContractTest {
         assertEquals(
             listOf(MessageTone.INFORMATIVE, MessageTone.FRIENDLY, MessageTone.SUGGESTIVE),
             MessageTone.entries,
-            "Declaration order is significant: copy-spec §5 indexes MessageTone.entries by floorMod(userId, 3)",
+            "Declaration order is significant: tone assignment indexes MessageTone.entries by floorMod(userId, 3)",
         )
     }
 
@@ -43,7 +43,7 @@ class EnumContractTest {
         assertEquals(MessageTone.SUGGESTIVE, NotificationType.HOLIDAY_EXPLORE.fallbackTone)
     }
 
-    // --- MessageVariable token strings (copy-spec §3) ----------------------------------------
+    // --- MessageVariable token strings ----------------------------------------
 
     @Test
     fun `MessageVariable tokens match copy-spec`() {

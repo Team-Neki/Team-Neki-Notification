@@ -21,14 +21,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * P3a RED — WEEKEND_EXPLORE reader 인수 테스트.
+ * WEEKEND_EXPLORE reader 통합 테스트.
  *
  * 하네스: Testcontainers PostgreSQL(postgres:16-alpine) 1개를 클래스 전역으로 띄우고,
  * 풀 Spring 컨텍스트 없이 DataSource→NamedParameterJdbcTemplate를 직접 구성한다.
- * 매 테스트 전에 schema-shared.sql을 재적용(드롭→생성)하여 케이스 간 격리한다.
- *
- * 현 단계는 RED: [JdbcSendTargetReader.read]가 TODO()이므로
- * 모든 단언 도달 전에 NotImplementedError로 실패해야 한다(컴파일은 성공).
+ * 매 테스트 전 reader-test-fixture.sql을 재적용(드롭→생성)하여 케이스 간 격리한다.
  */
 @Testcontainers
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

@@ -12,30 +12,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * [CsvHolidayCalendar] unit tests (P5 RED).
+ * [CsvHolidayCalendar] 단위 테스트.
  *
- * Scope (simplified P5): send offset = same day (D-0), no long-holiday inference.
- * Edge-case CSV is injected in-memory via the `lines` constructor to avoid resource sprawl.
- *
- * AC -> test mapping:
- *  - AC1 lookup hit (UTF-8 Korean name)      -> [Lookup.`AC1 hit returns Holiday with date and UTF-8 name`]
- *  - AC2 same-day boundary (prev/next null)  -> [Lookup.`AC2 day before a holiday is null`], [Lookup.`AC2 day after a holiday is null`]
- *  - AC3 header row not treated as data       -> [Parsing.`AC3 header row is not loaded as a holiday`]
- *  - AC4 comments / blank lines ignored       -> [Parsing.`AC4 comment and blank lines are ignored`]
- *  - AC5 malformed row fails on load          -> [LoadValidation.`AC5 unparseable date fails on load with offending line`], [LoadValidation.`AC5 wrong column count fails on load with offending line`]
- *  - AC6 duplicate date fails on load         -> [LoadValidation.`AC6 duplicate holidayDate fails fast on load`]
- *  - AC7 bundled classpath resource loads      -> [ClasspathResource.`AC7 bundled holidays csv loads and known dates resolve`]
- *  - AC8 strict ISO yyyy-MM-dd                  -> [LoadValidation.`AC8 non ISO date format fails on load`]
- *  - AC9 all() returns every entry             -> [AllEntries.`AC9 all returns every parsed entry`]
- *
- * QA gate 보강 (manager 확정 동작 정책):
- *  - 정책1 빈 입력/헤더만 -> 예외 아님       -> [EmptyInput.*]
- *  - 정책2 필드 trim                          -> [Trimming.*]
- *  - 정책3 빈/공백 name -> 로드 실패           -> [LoadValidation.`empty name fails on load with line info`], [...`blank name ...`]
- *  - 정책3 대칭 빈/공백 date -> 로드 실패       -> [LoadValidation.`empty date fails on load with line info`], [...`blank date ...`]
- *  - 정책4 컬럼 부족(쉼표 없음) -> 로드 실패    -> [LoadValidation.`missing column fails on load with line info`]
- *  - 정책5 에러 메시지 = "holidays.csv line {N}: {reason} -> {원문}" (1-based 라인 토큰 "line N" + 원문, 모든 로드 검증 예외 공통)
- *  - fromStream UTF-8 직접 테스트              -> [StreamSource.*]
+ * 발송 offset = 당일(D-0), 연휴 추론 없음. 엣지 케이스 CSV는 `lines` 생성자로 in-memory 주입한다.
+ * 로드 검증 실패 메시지 형식: "holidays.csv line {N}: {reason} -> {원문}".
  */
 class CsvHolidayCalendarTest {
 

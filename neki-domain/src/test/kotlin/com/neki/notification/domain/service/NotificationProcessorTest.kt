@@ -12,16 +12,16 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * NotificationProcessor.process 인수조건 (P2 RED).
+ * NotificationProcessor.process 인수조건.
  *
  * 판정 순서(명세): ① 동의 재확인 → ② 중복 체크 → ③ 톤 배정 + 렌더링 (skip-early).
  *
  * 설계 메모: process는 순수 함수다. dedup 조회는 NotificationLogRepository(포트)의
  * 책임이며 그 결과(alreadySent)를 입력으로 주입받는다 — 그래서 이 테스트에는 mock이 없다.
- * 톤 배정/렌더링은 ToneAssignmentPolicy·MessageRenderer(P1)에 위임하므로, 여기서는 그
+ * 톤 배정/렌더링은 ToneAssignmentPolicy·MessageRenderer에 위임하므로, 여기서는 그
  * 위임 결과가 ProcessOutcome에 올바르게 반영되는지를 검증한다.
  *
- * 톤 배정(copy-spec §5): MessageTone.entries[floorMod(userId, 3)]
+ * 톤 배정: MessageTone.entries[floorMod(userId, 3)]
  *   userId 0 -> INFORMATIVE, 1 -> FRIENDLY, 2 -> SUGGESTIVE.
  */
 class NotificationProcessorTest {

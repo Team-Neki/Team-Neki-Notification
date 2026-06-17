@@ -7,7 +7,7 @@ import com.neki.notification.domain.model.RenderedMessage
 import com.neki.notification.domain.model.fallbackTone
 
 /**
- * 문구 렌더링 (copy-spec §4 템플릿 + §6 치환/폴백 규칙). 순수 함수.
+ * 문구 렌더링(템플릿 + 치환/폴백 규칙). 순수 함수.
  */
 object MessageRenderer {
 
@@ -17,7 +17,6 @@ object MessageRenderer {
         val requiredVariable: MessageVariable? = null,
     )
 
-    // copy-spec §4 — 9개 (type, tone) 템플릿을 verbatim으로 인코딩.
     // 두 단계 when 으로 표현하여 NotificationType/MessageTone enum 망라성을 컴파일러가 강제한다.
     private fun templateFor(type: NotificationType, tone: MessageTone): Template = when (type) {
         NotificationType.WEEKLY_REMINDER -> when (tone) {
@@ -77,7 +76,6 @@ object MessageRenderer {
         val template = templateFor(type, assignedTone)
         val required = template.requiredVariable
 
-        // (1) 변수가 필요 없으면 그대로 렌더링.
         if (required == null) {
             return RenderedMessage(
                 title = template.title,
@@ -89,7 +87,6 @@ object MessageRenderer {
 
         val value = variables[required]
 
-        // (2) 변수값이 존재하고 비어있지 않으면 치환.
         if (!value.isNullOrBlank()) {
             return RenderedMessage(
                 title = template.title.replace("{${required.token}}", value),
@@ -99,7 +96,7 @@ object MessageRenderer {
             )
         }
 
-        // (3) 변수값 없음 -> 기본(폴백) 톤 템플릿으로 폴백. 폴백 템플릿은 변수를 필요로 하지 않는다.
+        // 변수값 없음 -> 기본(폴백) 톤 템플릿으로 폴백. 폴백 템플릿은 변수를 필요로 하지 않는다.
         val fallback = type.fallbackTone
         val fallbackTemplate = templateFor(type, fallback)
         return RenderedMessage(

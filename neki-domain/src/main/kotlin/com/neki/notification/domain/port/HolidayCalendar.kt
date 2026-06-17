@@ -4,12 +4,12 @@ import com.neki.notification.domain.model.Holiday
 import java.time.LocalDate
 
 /**
- * 공휴일 달력 조회 포트 (P5).
+ * 공휴일 달력 조회 포트.
  *
  * 도메인은 공휴일 데이터의 출처(CSV/DB/외부 API 등)를 알지 못한다. CSV 등 어댑터가
  * 이 계약을 구현한다(infra `CsvHolidayCalendar`).
  *
- * 현재 스코프(P5 단순화 확정본):
+ * 현재 스코프:
  * - 발송 offset = **당일(D-0)** — 어댑터가 보유한 날짜를 그대로 발송일로 사용한다.
  * - **연휴 묶음 추론 없음** — 연휴/대체공휴일을 별도로 묶거나 추론하지 않는다.
  * - 발송 offset/연휴 묶음 정책은 현재 미적용이며 추후 도입할 수 있다.

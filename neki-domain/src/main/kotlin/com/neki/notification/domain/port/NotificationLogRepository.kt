@@ -9,7 +9,7 @@ import java.time.LocalDate
  * 도메인 서비스(NotificationProcessor)는 이력 조회 자체를 수행하지 않고,
  * 어댑터가 이 포트로 조회한 결과(alreadySent)를 입력으로 받는다.
  *
- * save()는 P4(발송 결과 기록)로 연기한다 — 이 단계에서는 정의하지 않는다.
+ * save()는 발송 결과 기록 단계로 연기한다 — 이 포트에서는 정의하지 않는다.
  */
 interface NotificationLogRepository {
     /**
