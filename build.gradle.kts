@@ -43,7 +43,7 @@ subprojects {
 
 // Aggregate coverage across all modules.
 dependencies {
-    kover(project(":domain"))
-    kover(project(":infra"))
-    kover(project(":application"))
+    kover(project(":neki-domain"))
+    kover(project(":neki-infra"))
+    kover(project(":neki-application"))
 }

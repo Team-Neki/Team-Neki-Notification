@@ -41,13 +41,13 @@
 ## 4. 모듈 구조
 
 ```
-application/   ← 부트 jar. Batch Job/Step 조립, @Scheduled, application.yml
-   └─ depends on → domain, infra
-domain/        ← 순수 Kotlin. 프레임워크 의존 최소
+neki-application/   ← 부트 jar. Batch Job/Step 조립, @Scheduled, application.yml
+   └─ depends on → neki-domain, neki-infra
+neki-domain/        ← 순수 Kotlin. 프레임워크 의존 최소
    ├─ model: SendTarget, NotificationType, MessageTone, NotificationLog ...
    ├─ policy: 문구 변수 치환 정책, 톤 배정 정책, 발송 대상 판정/dedup 규칙
    └─ port: SendTargetReader / NotificationSender / NotificationLogRepository 인터페이스
-infra/         ← 외부 의존성 어댑터 (depends on → domain)
+neki-infra/         ← 외부 의존성 어댑터 (depends on → neki-domain)
    ├─ persistence(read):  Jdbc projection ItemReader
    ├─ persistence(write): JPA NotificationLog Repository
    └─ push: Firebase Admin SDK FCM 클라이언트

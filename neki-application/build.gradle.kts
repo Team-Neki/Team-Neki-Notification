@@ -8,8 +8,8 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":domain"))
-    implementation(project(":infra"))
+    implementation(project(":neki-domain"))
+    implementation(project(":neki-infra"))
 
     implementation(libs.spring.boot.starter)
     implementation(libs.spring.boot.starter.batch)

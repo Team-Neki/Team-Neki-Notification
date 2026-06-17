@@ -1,5 +1,5 @@
 rootProject.name = "team-neki-notification"
 
-include("domain")
-include("infra")
-include("application")
+include("neki-domain")
+include("neki-infra")
+include("neki-application")

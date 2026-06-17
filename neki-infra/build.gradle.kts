@@ -13,7 +13,7 @@ dependencyManagement {
 }
 
 dependencies {
-    implementation(project(":domain"))
+    implementation(project(":neki-domain"))
 
     implementation(libs.spring.context)
     implementation(libs.spring.boot.starter.data.jpa)

@@ -32,11 +32,11 @@ Kotlin + Spring Boot + Spring Batch 기반이며, 발송 대상 조회는 공유
 ## 모듈 구조
 
 ```
-application/   부트 jar — Batch Job/Step 조립, @Scheduled, 설정
-   └─ depends on → domain, infra
-domain/        순수 Kotlin — 모델·정책. 프레임워크 의존성 0 (불변식)
-infra/         외부 의존성 어댑터 — Jdbc 읽기 / JPA 쓰기 / FCM
-   └─ depends on → domain
+neki-application/   부트 jar — Batch Job/Step 조립, @Scheduled, 설정
+   └─ depends on → neki-domain, neki-infra
+neki-domain/        순수 Kotlin — 모델·정책. 프레임워크 의존성 0 (불변식)
+neki-infra/         외부 의존성 어댑터 — Jdbc 읽기 / JPA 쓰기 / FCM
+   └─ depends on → neki-domain
 ```
 
 **원칙**: `domain`은 포트(인터페이스)만 정의하고, `infra`가 구현(Jdbc/JPA/FCM)을 채운다. `application`이 와이어링한다.
@@ -58,7 +58,7 @@ JDK 21 필요. 래퍼가 포함되어 있어 별도 Gradle 설치 불필요.
 
 ```bash
 ./gradlew build              # 전체 빌드 + 테스트
-./gradlew :domain:test       # 도메인 단위 테스트
+./gradlew :neki-domain:test  # 도메인 단위 테스트
 ./gradlew koverXmlReport     # 커버리지 리포트 (build/reports/kover/)
 ```
 
