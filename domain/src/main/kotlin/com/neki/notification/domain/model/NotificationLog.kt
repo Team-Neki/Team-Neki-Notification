@@ -3,11 +3,6 @@ package com.neki.notification.domain.model
 import java.time.Instant
 import java.time.LocalDate
 
-/**
- * 발송 이력 (batch-design §6 notification_log). 순수 도메인 모델 — infra가 JPA 엔티티로 매핑한다.
- *
- * 중복 방지 키: (userId, notificationType, businessDate) (copy-spec §7).
- */
 data class NotificationLog(
     val userId: Long,
     val notificationType: NotificationType,
@@ -21,9 +16,6 @@ data class NotificationLog(
     val id: Long? = null,
 ) {
     companion object {
-        /**
-         * 발송 결과로부터 이력 1건을 만든다. `sentAt`은 infra 적재 시점에 채워진다.
-         */
         fun of(
             target: SendTarget,
             type: NotificationType,

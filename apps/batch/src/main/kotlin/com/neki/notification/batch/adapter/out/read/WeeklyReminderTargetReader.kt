@@ -7,12 +7,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Component
 import java.time.LocalDate
 
-/**
- * WEEKLY_REMINDER 발송 대상 리더 (shared-db §1: 7일 전 사진 업로드 이력 + 푸시동의).
- *
- * 대상 = `push_agreed = true` 이면서 `businessDate - 7일`에 사진 업로드 이력이 있는 유저.
- * 변수 `[최근 업로드 요일]` = 해당 유저의 가장 최근 업로드 일자의 요일 (copy-spec §3).
- */
 @Component
 class WeeklyReminderTargetReader(
     private val jdbc: NamedParameterJdbcTemplate,

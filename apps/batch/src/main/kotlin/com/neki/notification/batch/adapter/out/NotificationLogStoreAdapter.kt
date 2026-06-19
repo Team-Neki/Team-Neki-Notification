@@ -10,11 +10,6 @@ import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 
-/**
- * [NotificationLogStore]의 JPA 구현 (batch-design §4 persistence-write).
- *
- * `sentAt`이 비어 있으면 적재 시각을 주입한다. 동일 키 동시 적재는 DB unique 제약이 최종 방어선.
- */
 @Component
 class NotificationLogStoreAdapter(
     private val repository: NotificationLogJpaRepository,

@@ -10,9 +10,6 @@ import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.LocalDate
 
-/**
- * 공휴일 JPA 엔티티 (batch-design §6 holiday). 본 앱 소유, 수동 시드.
- */
 @Entity
 @Table(
     name = "holiday",

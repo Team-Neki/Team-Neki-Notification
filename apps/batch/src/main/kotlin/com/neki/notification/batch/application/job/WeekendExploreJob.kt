@@ -14,11 +14,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.LocalDate
 
-/**
- * WEEKEND_EXPLORE Job (batch-design §5): 동의자 전원에게 주말 탐방 알림.
- *
- * 대상 = `push_agreed = true` 전원, 변수 없음. 골격 조립은 [NotificationStepFactory]에 위임한다.
- */
 @Configuration("weekendExploreJobConfig")
 class WeekendExploreJob(
     private val steps: NotificationStepFactory,

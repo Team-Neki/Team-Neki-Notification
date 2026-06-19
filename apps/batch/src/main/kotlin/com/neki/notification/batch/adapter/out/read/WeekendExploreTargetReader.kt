@@ -5,12 +5,6 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Component
 
-/**
- * WEEKEND_EXPLORE 발송 대상 리더 (shared-db §1: 전체 대상자 + 푸시동의).
- *
- * 대상 = `TB_NOTIFICATION.push_agreed = true` 전원. 변수 없음.
- * keyset 페이징: `user_id > :after ORDER BY user_id LIMIT :limit`.
- */
 @Component
 class WeekendExploreTargetReader(
     private val jdbc: NamedParameterJdbcTemplate,
