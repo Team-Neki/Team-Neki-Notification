@@ -4,6 +4,7 @@ import com.neki.notification.infra.persistence.HolidayEntity
 import com.neki.notification.infra.persistence.HolidayJpaRepository
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -16,6 +17,7 @@ import java.time.LocalDate
  *  - 전날(offset -1): notifyDate == holidayDate - 1
  *  - 매칭 없음 → null
  *  - 여러 후보 중 notifyDate가 일치하는 것만 선택
+ *  - 오프셋 가드(B-6/L-4): 조회 윈도우가 허용 오프셋을 덮어 경계(±3)에서 누락되지 않음
  */
 class HolidayCalendarAdapterTest {
 
@@ -63,5 +65,30 @@ class HolidayCalendarAdapterTest {
         )
 
         assertEquals("어린이날", adapter.holidayToNotifyOn(businessDate)?.name)
+    }
+
+    @Test
+    fun `조회 윈도우는 허용 오프셋(±2)을 덮도록 ±3일을 스캔한다`() {
+        val businessDate = LocalDate.of(2026, 5, 5)
+        every { repository.findByHolidayDateBetween(any(), any()) } returns emptyList()
+
+        adapter.holidayToNotifyOn(businessDate)
+
+        verify {
+            repository.findByHolidayDateBetween(
+                businessDate.minusDays(3),
+                businessDate.plusDays(3),
+            )
+        }
+    }
+
+    @Test
+    fun `오프셋 -3 경계 - 윈도우 밖으로 새지 않고 발송일에 매칭된다`() {
+        val holidayDate = LocalDate.of(2026, 9, 28)
+        val sendDate = holidayDate.minusDays(3) // notifyDate = 9/25
+        every { repository.findByHolidayDateBetween(any(), any()) } returns
+            listOf(entity(holidayDate, "추석 연휴", -3))
+
+        assertEquals("추석 연휴", adapter.holidayToNotifyOn(sendDate)?.name)
     }
 }
