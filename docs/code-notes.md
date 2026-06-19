@@ -10,7 +10,7 @@
 
 - `domain/.../application/port/out/HolidayCalendar.kt:6` (`interface HolidayCalendar`) — 공휴일 발송일 판정 포트(batch-design §P5). infra가 `holiday` 테이블 조회로 구현한다.
   - `:7` (`holidayToNotifyOn`) — `businessDate`가 어떤 공휴일의 발송일(notifyDate)이면 그 공휴일을, 아니면 null을 반환. HOLIDAY_EXPLORE Job이 매일 깨어나 이 판정으로 발송 여부와 `[공휴일명]`을 결정한다.
-- `domain/.../application/port/out/NotificationLogStore.kt:7` (`interface NotificationLogStore`) — 발송 이력 저장/조회 포트(batch-design §4). infra가 JPA로 구현. 이력 조회(중복 판정의 원천)는 포트 책임이고, "이미 발송됨" 불리언을 받은 뒤의 발송 제외 판정은 도메인(NotificationProcessor) 책임(copy-spec §7).
+- `domain/.../application/port/out/NotificationLogStore.kt:7` (`interface NotificationLogStore`) — 발송 이력 저장/조회 포트(batch-design §4). infra가 jOOQ로 구현. 이력 조회(중복 판정의 원천)는 포트 책임이고, "이미 발송됨" 불리언을 받은 뒤의 발송 제외 판정은 도메인(NotificationProcessor) 책임(copy-spec §7).
   - `:8` (`alreadySent`) — (userId, type, businessDate) 키로 이미 발송된 이력이 있는지.
   - `:10` (`save`) — 발송 이력 1건 적재. unique (user_id, notification_type, business_date) 제약으로 최종 중복 방지.
 - `domain/.../application/port/out/PushSender.kt:6` (`fun interface PushSender`) — 푸시 발송 포트(batch-design §4). infra가 Firebase Admin SDK 어댑터로 구현.
@@ -23,7 +23,7 @@
 - `domain/.../domain/model/MessageTone.kt:3` (`enum MessageTone`) — 메시지 톤. **선언 순서가 유효**(copy-spec §5): `MessageTone.entries[floorMod(userId, 3)]`.
 - `domain/.../domain/model/MessageVariable.kt:3` (`enum MessageVariable`) — 문구 치환 변수(copy-spec §3).
 - `domain/.../domain/model/NotificationType.kt:3` (`enum NotificationType`) — In-scope 알림 타입(copy-spec §1). 같은 파일의 기본(폴백) 톤 매핑(`:12` 부근) — 알림 타입별 기본 톤(copy-spec §1), 폴백 톤 템플릿은 변수를 필요로 하지 않는다.
-- `domain/.../domain/model/NotificationLog.kt:6` (`data class NotificationLog`) — 발송 이력(batch-design §6 notification_log). 순수 도메인 모델 — infra가 JPA 엔티티로 매핑. 중복 방지 키: (userId, notificationType, businessDate)(copy-spec §7).
+- `domain/.../domain/model/NotificationLog.kt:6` (`data class NotificationLog`) — 발송 이력(batch-design §6 notification_log). 순수 도메인 모델 — infra(jOOQ 어댑터)가 notification_log 행으로 매핑. 중복 방지 키: (userId, notificationType, businessDate)(copy-spec §7).
   - `:18` (`companion object of()`) — 발송 결과로부터 이력 1건 생성. `sentAt`은 infra 적재 시점에 채워진다.
 - `domain/.../domain/model/PreparedNotification.kt:5` (`data class PreparedNotification`) — 발송 확정된 1건(Processor → Writer 전달 DTO, batch-design §5). Writer가 `target`의 토큰으로 `message`를 발송한 뒤 그 결과로 NotificationLog를 적재한다.
 - `domain/.../domain/model/RenderedMessage.kt:3` (`data class RenderedMessage`) — 렌더링 결과(copy-spec §6).
@@ -39,16 +39,9 @@
 - `domain/.../domain/policy/ToneAssignmentPolicy.kt:5` (`object ToneAssignmentPolicy`, `:6 assign`) — 유저별 결정적 톤 배정(copy-spec §5): `MessageTone.entries[floorMod(userId, 3)]`. 음수 userId는 `Math.floorMod`로 안전 처리.
 - `domain/.../domain/service/NotificationProcessor.kt:10` (`object NotificationProcessor`, `:12 decide`) — 발송 대상 처리 판정(batch-design §5 Processor). 순수 함수. 순서: ① 푸시동의 확인 → ② 당일 중복 확인 → ③ 톤 배정 + 문구 렌더링. 이력 조회 자체는 포트(NotificationLogStore) 책임이고, 여기서는 그 결과(alreadySent)를 입력으로 받는다(copy-spec §7).
 
-## modules/postgresql — 영속성 인프라
+## 영속성 (jOOQ)
 
-- `modules/postgresql/.../infra/persistence/HolidayEntity.kt:18` (`class HolidayEntity`) — 공휴일 JPA 엔티티(batch-design §6 holiday). 본 앱 소유, 수동 시드.
-  - `:33` (`toDomain`) — 엔티티 → 도메인 `Holiday` 매핑.
-- `modules/postgresql/.../infra/persistence/HolidayJpaRepository.kt:6` (`interface HolidayJpaRepository`) — holiday Spring Data JPA 리포지토리.
-  - `:7` (`findByHolidayDateBetween`) — 발송일 판정 후보군: holiday_date가 [start, end] 범위인 공휴일.
-- `modules/postgresql/.../infra/persistence/NotificationLogEntity.kt:33` (`class NotificationLogEntity`) — 발송 이력 JPA 엔티티(batch-design §6 notification_log). 중복 방지: UNIQUE(user_id, notification_type, business_date). 본 앱 소유 테이블 — DDL은 Flyway 마이그레이션이 소유(application.yml `ddl-auto=validate`). 스키마 정의는 `docs/code-notes.md`가 아니라 `apps/batch/src/main/resources/db/migration/V1__notification_schema.sql`.
-  - `:69` (`companion object from()`) — 도메인 로그 → 엔티티 매핑(`sentAt` 미지정 시 적재 시각 주입).
-- `modules/postgresql/.../infra/persistence/NotificationLogJpaRepository.kt:7` (`interface NotificationLogJpaRepository`, `:8 existsByUserIdAndNotificationTypeAndBusinessDate`) — notification_log Spring Data JPA 리포지토리.
-- `modules/postgresql/.../infra/persistence/config/PostgresPersistenceConfig.kt:10` (`class PostgresPersistenceConfig`, `@Configuration :7`) — postgresql 영속성 모듈의 JPA 구성(config는 module 소유). 엔티티/리포지토리 스캔 범위를 이 모듈 패키지로 한정해 모듈을 자기완결적으로 만든다. 포트 구현 어댑터는 apps의 `adapter.out`으로 분리돼 있고, 여기서는 영속성 기술 구성(엔티티·Spring Data JPA 리포지토리 등록)만 책임진다.
+jOOQ 마이그레이션(PR #13~)으로 JPA(Hibernate)·`modules/postgresql` 모듈을 제거하고 영속성을 `apps/batch`로 통합했다. 소유 테이블(`notification_log`, `holiday`)은 Flyway V1 DDL에서 jOOQ codegen으로 타입 생성(`com.neki.notification.infra.jooq`, `build/` 하위·미추적), 외부 소유 테이블(`tb_notification`/`tb_photo_image`)은 codegen 없이 plain SQL. 구체 구현은 `apps/batch — adapter/out` 섹션(`NotificationLogStoreAdapter`, `HolidayCalendarAdapter`, `read/*`) 및 `JooqConfig` 참조. 스키마 SSOT는 `apps/batch/src/main/resources/db/migration/V1__notification_schema.sql`.
 
 ## modules/fcm — FCM 기술 인프라
 
@@ -98,6 +91,4 @@
 - `apps/batch/.../batch/application/step/NotificationItemWriter.kt:10` (`class NotificationItemWriter`) — 발송 + 이력 적재(batch-design §5 Composite Writer). 각 건을 FCM 발송하고 그 결과(SUCCESS/FAILED/SKIPPED)로 NotificationLog를 적재. 동일 키 동시 적재는 DB unique 제약이 최종 방어선. send-then-save는 외부 부수효과 후 트랜잭션 적재라 본질적으로 dual-write이며, 롤백 시 중복 발송 위험은 `CHUNK_SIZE = 1`(건별 커밋, NotificationStepFactory 참조)로 1건으로 한정한다(B-5/M-3).
 - `apps/batch/.../batch/application/step/PagingSendTargetItemReader.kt:6` (`class PagingSendTargetItemReader`) — keyset 페이징 `ItemReader`(batch-design §5 Reader). `user_id` 오름차순으로 페이지를 당겨 1건씩 흘려보낸다. 빈 페이지를 만나면 소진으로 보고 종료. 단일 인스턴스·단일 스레드 Step 전제(분산 락 불필요, batch-design §3).
 
-## apps/batch — test/architecture (아키텍처 제약)
-
-- `apps/batch/.../architecture/PersistenceScanBoundaryTest.kt` (`class PersistenceScanBoundaryTest`) — 컴포넌트 스캔 이중화 가드(B-3/M-1, ArchUnit). 루트 `@SpringBootApplication`은 `com.neki.notification` 전역을 스캔하지만 `PostgresPersistenceConfig`의 `@EntityScan`/`@EnableJpaRepositories`는 `com.neki.notification.infra.persistence`로 한정한다. 두 선언은 현재 멱등이나, JPA 엔티티/리포가 이 패키지 밖으로 이동하면 모듈 config가 조용히 누락한다. 이 테스트가 "JPA 엔티티·Spring Data 리포는 `infra.persistence` 하위에 둔다"는 제약을 고정해 드리프트를 CI에서 차단한다(이중 구조는 유지하되 제약을 테스트로 못박는 B-3 (b)안).
+> B-3(컴포넌트 스캔 이중화 ArchUnit 가드)는 jOOQ 마이그레이션으로 JPA 스캔(`@EntityScan`/`@EnableJpaRepositories`)이 사라져 더 이상 해당 사항이 없으므로 제거됨.
