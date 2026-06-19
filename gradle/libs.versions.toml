@@ -10,9 +10,8 @@ testcontainers = "1.20.6"
 
 [libraries]
 # Spring (versions managed by Spring BOM via dependency-management plugin)
-spring-context = { module = "org.springframework:spring-context" }
-spring-jdbc = { module = "org.springframework:spring-jdbc" }
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
+spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
 spring-boot-starter-batch = { module = "org.springframework.boot:spring-boot-starter-batch" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }

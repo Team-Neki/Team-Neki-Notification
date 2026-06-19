@@ -15,6 +15,9 @@ dependencies {
 
     implementation(libs.spring.boot.starter)
     implementation(libs.spring.boot.starter.batch)
+    // read/* 타깃 Reader가 NamedParameterJdbcTemplate를 직접 사용하므로 JDBC 스타터를 명시한다
+    // (data-jpa 전이 의존에 암묵적으로 기대지 않도록 — H-2).
+    implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.firebase.admin)
     runtimeOnly(libs.postgresql)
