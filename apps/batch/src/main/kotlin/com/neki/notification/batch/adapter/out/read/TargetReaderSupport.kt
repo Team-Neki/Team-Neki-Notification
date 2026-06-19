@@ -2,27 +2,21 @@ package com.neki.notification.batch.adapter.out.read
 
 import com.neki.notification.domain.model.MessageVariable
 import com.neki.notification.domain.model.SendTarget
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource
-import java.sql.ResultSet
+import org.jooq.Record
 
 internal object TargetReaderSupport {
 
-    const val PAGING_PREDICATE = "n.push_agreed = true AND n.user_id > :after"
+    const val PAGING_PREDICATE = "n.push_agreed = true AND n.user_id > ?"
 
-    const val PAGING_TAIL = "ORDER BY n.user_id LIMIT :limit"
-
-    fun pagingParams(afterUserId: Long, pageSize: Int): MapSqlParameterSource =
-        MapSqlParameterSource()
-            .addValue("after", afterUserId)
-            .addValue("limit", pageSize)
+    const val PAGING_TAIL = "ORDER BY n.user_id LIMIT ?"
 
     fun sendTarget(
-        rs: ResultSet,
+        record: Record,
         variables: Map<MessageVariable, String?> = emptyMap(),
     ): SendTarget =
         SendTarget(
-            userId = rs.getLong("user_id"),
-            fcmToken = rs.getString("device_token"),
+            userId = record.get("user_id", Long::class.java),
+            fcmToken = record.get("device_token", String::class.java),
             pushConsent = true,
             variables = variables,
         )
