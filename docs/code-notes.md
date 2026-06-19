@@ -85,6 +85,7 @@
   - `:34 processor` — 당일 중복 판정 + 도메인 발송 판정 Processor.
   - `:37 chunkStep` — Reader → Processor → (공통)Writer 청크 Step.
   - `:49 singleStepJob` — 단일 Step Job.
+  - `CHUNK_SIZE = 1` (B-5/M-3) — 발송(FCM, 비트랜잭션 외부 부수효과)과 이력 적재(트랜잭션)를 **건별로 커밋**한다. 청크>1이면 한 건의 `save()` 실패가 같은 청크의 이미 발송된 다른 건들의 적재까지 롤백시켜, 재실행 시 그만큼 중복 발송된다(Processor의 `alreadySent`가 커밋된 이력만 보기 때문). 청크=1은 그 블라스트 반경을 "실패한 그 1건"으로 한정한다. 잔여 윈도우: 그 1건은 발송 후 `save()`가 실패하면 재실행 시 1회 중복 가능(단일 인스턴스·`FcmPushSender`가 예외를 흡수해 청크 중단은 `save()` 실패에 한정되므로 드묾). 완전 at-most-once가 필요해지면(예: 다중 인스턴스화) 발송 전 별도 트랜잭션 멱등 클레임(unique 제약 선점) 패턴으로 강화. `PAGE_SIZE = 100`은 DB 조회 효율을 위해 유지(조회 단위 ≠ 커밋 단위).
 - `apps/batch/.../batch/application/job/WeekendExploreJob.kt:18` (`class WeekendExploreJob`, `@Configuration("weekendExploreJobConfig") :17`) — WEEKEND_EXPLORE Job(batch-design §5): 동의자 전원에게 주말 탐방 알림. 대상 = `push_agreed=true` 전원, 변수 없음. 골격 조립은 NotificationStepFactory에 위임.
 - `apps/batch/.../batch/application/job/WeeklyReminderJob.kt:18` (`class WeeklyReminderJob`, `@Configuration("weeklyReminderJobConfig") :17`) — WEEKLY_REMINDER Job(batch-design §5): 7일 전 업로드 동의자에게 주간 리마인드. Reader가 `businessDate`(JobParameter)를 받아 7일 전 업로드 이력을 조회하고 `[최근 업로드 요일]`을 채운다. 골격 조립은 NotificationStepFactory에 위임.
 - `apps/batch/.../batch/application/job/HolidayExploreJob.kt:19` (`class HolidayExploreJob`, `@Configuration("holidayExploreJobConfig") :18`) — HOLIDAY_EXPLORE Job(batch-design §P5): 공휴일 발송일에 최근 1달 업로드 동의자에게 알림. 매일 깨어나 `HolidayCalendar`로 발송일 여부를 판정. 발송일이 아니면 빈 Reader로 0건 처리, 발송일이면 `[공휴일명]`을 채워 발송. 골격 조립은 NotificationStepFactory에 위임.
@@ -93,7 +94,7 @@
 ## apps/batch — application/step (배치 스텝 컴포넌트)
 
 - `apps/batch/.../batch/application/step/NotificationItemProcessor.kt:12` (`class NotificationItemProcessor`) — 발송 대상 → 발송 확정 변환(batch-design §5 Processor). 당일 중복 여부를 `logStore`로 조회한 뒤 `NotificationProcessor`로 판정. Skip(미동의/중복)이면 null 반환해 청크에서 필터.
-- `apps/batch/.../batch/application/step/NotificationItemWriter.kt:10` (`class NotificationItemWriter`) — 발송 + 이력 적재(batch-design §5 Composite Writer). 각 건을 FCM 발송하고 그 결과(SUCCESS/FAILED/SKIPPED)로 NotificationLog를 적재. 동일 키 동시 적재는 DB unique 제약이 최종 방어선.
+- `apps/batch/.../batch/application/step/NotificationItemWriter.kt:10` (`class NotificationItemWriter`) — 발송 + 이력 적재(batch-design §5 Composite Writer). 각 건을 FCM 발송하고 그 결과(SUCCESS/FAILED/SKIPPED)로 NotificationLog를 적재. 동일 키 동시 적재는 DB unique 제약이 최종 방어선. send-then-save는 외부 부수효과 후 트랜잭션 적재라 본질적으로 dual-write이며, 롤백 시 중복 발송 위험은 `CHUNK_SIZE = 1`(건별 커밋, NotificationStepFactory 참조)로 1건으로 한정한다(B-5/M-3).
 - `apps/batch/.../batch/application/step/PagingSendTargetItemReader.kt:6` (`class PagingSendTargetItemReader`) — keyset 페이징 `ItemReader`(batch-design §5 Reader). `user_id` 오름차순으로 페이지를 당겨 1건씩 흘려보낸다. 빈 페이지를 만나면 소진으로 보고 종료. 단일 인스턴스·단일 스레드 Step 전제(분산 락 불필요, batch-design §3).
 
 ## apps/batch — test/architecture (아키텍처 제약)
