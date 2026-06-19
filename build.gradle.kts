@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.spring) apply false
-    alias(libs.plugins.kotlin.jpa) apply false
     alias(libs.plugins.spring.boot) apply false
     alias(libs.plugins.spring.dependency.management) apply false
     alias(libs.plugins.kover)
@@ -44,7 +43,6 @@ subprojects {
 // Aggregate coverage across all modules.
 dependencies {
     kover(project(":domain"))
-    kover(project(":modules:postgresql"))
     kover(project(":modules:fcm"))
     kover(project(":modules:scheduling"))
     kover(project(":apps:batch"))

@@ -4,7 +4,6 @@ import org.jooq.meta.jaxb.Property
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.spring)
-    alias(libs.plugins.kotlin.jpa)
     alias(libs.plugins.spring.boot)
     alias(libs.plugins.spring.dependency.management)
     alias(libs.plugins.kover)
@@ -13,16 +12,14 @@ plugins {
 
 dependencies {
     implementation(project(":domain"))
-    implementation(project(":modules:postgresql"))
     implementation(project(":modules:fcm"))
     implementation(project(":modules:scheduling"))
 
     implementation(libs.spring.boot.starter)
     implementation(libs.spring.boot.starter.batch)
-    // read/* 타깃 Reader가 NamedParameterJdbcTemplate를 직접 사용하므로 JDBC 스타터를 명시한다
-    // (data-jpa 전이 의존에 암묵적으로 기대지 않도록 — H-2).
+    // jOOQ 스타터가 jdbc(DataSource·DataSourceTransactionManager)를 전이로 제공하지만,
+    // read/* 리더와 Spring Batch가 직접 의존하므로 JDBC 스타터를 명시한다(H-2).
     implementation(libs.spring.boot.starter.jdbc)
-    implementation(libs.spring.boot.starter.data.jpa)
     implementation(libs.spring.boot.starter.jooq)
     implementation(libs.flyway.core)
     runtimeOnly(libs.flyway.database.postgresql)
@@ -39,7 +36,6 @@ dependencies {
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.mockk)
-    testImplementation(libs.archunit)
 }
 
 // 런타임 jOOQ(스타터, Boot BOM 관리)와 codegen 버전을 일치시킨다.
