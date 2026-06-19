@@ -19,6 +19,8 @@ dependencies {
     // (data-jpa 전이 의존에 암묵적으로 기대지 않도록 — H-2).
     implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.spring.boot.starter.data.jpa)
+    implementation(libs.flyway.core)
+    runtimeOnly(libs.flyway.database.postgresql)
     implementation(libs.firebase.admin)
     runtimeOnly(libs.postgresql)
 
