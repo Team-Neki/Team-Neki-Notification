@@ -25,6 +25,10 @@ neki:
   batch:
     # 스케줄러(@Scheduled) 활성화. 운영에서만 true (NotificationJobScheduler).
     scheduling-enabled: false
+    # 기동 시 공휴일 CSV → holiday 테이블 동기화 활성화. 운영에서만 true (HolidaySyncRunner).
+    holiday-sync-enabled: false
+    # 공휴일 원천 CSV 경로(클래스패스). 추후 Google Sheet로 전환 예정(issue #17).
+    holiday-csv: holidays.csv
     cron:
       weekly: "0 0 20 * * *"            # 매일 20:00 — 아카이빙 1주일 리마인드
       weekend: "0 0 18 * * FRI,SAT,SUN" # 금/토/일 18:00 — 주말 전 탐색

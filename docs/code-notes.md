@@ -15,6 +15,8 @@
   - `:10` (`save`) — 발송 이력 1건 적재. unique (user_id, notification_type, business_date) 제약으로 최종 중복 방지.
 - `domain/.../application/port/out/PushSender.kt:6` (`fun interface PushSender`) — 푸시 발송 포트(batch-design §4). infra가 Firebase Admin SDK 어댑터로 구현.
   - `:7` (`send`) — 단일 디바이스 토큰으로 메시지 발송. 무효 토큰·전송 실패는 `FcmResult.FAILED`.
+- `domain/.../application/port/out/HolidaySource.kt` (`fun interface HolidaySource`) — 공휴일 **외부 원천** 포트(seed source). 현재 CSV(`CsvHolidaySource`), 추후 Google Sheet로 교체(issue #17). `load()` → `List<Holiday>`. 원천 적재(이 포트)와 도메인 판정 조회(`HolidayCalendar`)는 분리된 관심사다.
+- `domain/.../application/port/out/HolidayStore.kt` (`interface HolidayStore`) — `holiday` 테이블 적재 포트. `upsertAll(holidays)` → holiday_date(unique) 기준 멱등 upsert. infra가 jOOQ로 구현.
 
 ## domain — 모델 (domain/model)
 
@@ -55,11 +57,14 @@ jOOQ 마이그레이션(PR #13~)으로 JPA(Hibernate)·`modules/postgresql` 모�
 ## apps/batch — adapter/in (인바운드)
 
 - `apps/batch/.../batch/adapter/in/scheduler/NotificationJobScheduler.kt:17` (`class NotificationJobScheduler`, `@Component :15`) — cron 스케줄 → Job 기동(batch-design §2/§P7). WEEKLY_REMINDER 매일 20:00 / WEEKEND_EXPLORE 금·토·일 / HOLIDAY_EXPLORE 매일 깨워 발송일 판정(공휴일 아니면 Job 내부 0건). `businessDate`는 운영 타임존 기준 오늘, `launchedAt`(ms)로 JobInstance를 매 기동 유일화.
+- `apps/batch/.../batch/adapter/in/HolidaySyncRunner.kt` (`class HolidaySyncRunner`, `ApplicationRunner`) — 기동 시 공휴일 동기화 1회 트리거. `neki.batch.holiday-sync-enabled=true`일 때만 활성(운영 한정, 스케줄러 게이팅과 동일 결). CSV는 배포 아티팩트라 "배포 시 시드"로 충분. Google Sheet(issue #17)로 가면 `@Scheduled` cron으로 전환.
   - `:36` (`launch`) — **중복/동시 기동 방어(C-1)**: `launchedAt` 유일화 때문에 같은 businessDate라도 매번 새 JobInstance가 생성돼 Spring Batch 중복 방지에 기댈 수 없다. 그래서 기동 직전 `JobExplorer.findRunningJobExecutions`로 동일 Job이 실행 중이면 트리거를 건너뛴다(이전 실행이 cron 주기를 넘긴 경우 방어). 이 가드는 **단일 JVM 인스턴스 내에서만** 유효 — 본 배치는 단일 인스턴스(k8s replica=1 등) 운영 전제이며 배포 매니페스트로 강제해야 한다. 다중 인스턴스는 ShedLock 등 분산 락으로 단일 발화를 별도 보장(발송 자체의 중복은 DB unique 제약만으로 못 막음).
 
 ## apps/batch — adapter/out (포트 구현 어댑터)
 
 - `apps/batch/.../batch/adapter/out/HolidayCalendarAdapter.kt:10` (`class HolidayCalendarAdapter`) — `HolidayCalendar`의 **jOOQ** 구현(batch-design §P5). 소유 테이블이라 생성된 타입(`Tables.HOLIDAY`)으로 `selectFrom(...).where(HOLIDAY_DATE.between(...))`. businessDate 주변 ±SCAN_WINDOW일의 공휴일을 후보로 조회한 뒤 `notifyDate(=date+notifyOffsetDays)==businessDate`인 공휴일 선택. 오프셋 계산을 Kotlin에서 처리해 DB 종속 날짜 연산 회피.
+- `apps/batch/.../batch/adapter/out/CsvHolidaySource.kt` (`class CsvHolidaySource`) — `HolidaySource`의 CSV 구현. 클래스패스 `holidays.csv`(`neki.batch.holiday-csv`로 경로 주입)에서 `holiday_date,name,notify_offset_days` 파싱. 주석(`#`)·빈 줄·헤더 건너뜀, offset 생략 시 0. 추후 Google Sheet 어댑터로 교체(issue #17).
+- `apps/batch/.../batch/adapter/out/HolidayStoreAdapter.kt` (`class HolidayStoreAdapter`) — `HolidayStore`의 jOOQ 구현. `insertInto(HOLIDAY).onConflict(HOLIDAY_DATE).doUpdate()`로 holiday_date 기준 멱등 upsert.
   - `MAX_OFFSET_DAYS = 2L` — 허용 notifyOffsetDays 절대값 상한(전날 -1 / 당일 0 + 여유). 시드 데이터 계약.
   - `SCAN_WINDOW = MAX_OFFSET_DAYS + 1` — 가드(B-6/L-4): 조회 윈도우를 계약보다 1일 넓게 잡아 `|offset|`이 상한을 1 초과한 데이터(±3)도 조용히 누락되지 않고 발송일에 매칭된다. 그런 후보는 WARN으로 로깅해 `MAX_OFFSET_DAYS` 상향/데이터 점검을 유도(SCAN_WINDOW 밖은 여전히 미조회이므로 조기 경고 목적).
 - `apps/batch/.../batch/adapter/out/NotificationLogStoreAdapter.kt:14` (`class NotificationLogStoreAdapter`) — `NotificationLogStore`의 **jOOQ** 구현(batch-design §4 persistence-write). 소유 테이블이라 생성된 타입(`Tables.NOTIFICATION_LOG`)으로 `insertInto`/`fetchExists`. `sentAt`이 비어 있으면 적재 시각 주입(`OffsetDateTime`/UTC). 동일 키 동시 적재는 DB unique 제약이 최종 방어선. `clock`은 기본값 없이 빈 주입 강제(B-4): 스케줄링 모듈이 제공하는 단일 `Clock`(Asia/Seoul) 빈을 일관되게 쓴다.
@@ -71,6 +76,10 @@ jOOQ 마이그레이션(PR #13~)으로 JPA(Hibernate)·`modules/postgresql` 모�
 - `apps/batch/.../batch/adapter/out/read/TargetReaderSupport.kt` (`object TargetReaderSupport`) — 세 TargetReader가 공유하는 페이징 골격 모음(B-1). 외부 소유 테이블(`tb_notification`/`tb_photo_image`)은 스키마 관리·codegen 대상이 아니므로 **jOOQ plain SQL**로 조회한다(JdbcTemplate 회피). 공통 술어 `PAGING_PREDICATE`(push 동의 + `user_id > ?` 키셋 커서) + 정렬·한도 `PAGING_TAIL`(`ORDER BY n.user_id LIMIT ?`) + `Record`→`SendTarget` 매퍼 `sendTarget(record, variables)`. 각 Reader는 `dsl.fetch(sql, ...positional binds)`로 고유 조건(weekly 7일 전 업로드, holiday 최근 1달 EXISTS)과 변수만 덧붙인다. plain SQL은 verbatim 전달이라 jOOQ 렌더 설정(JooqConfig)의 영향을 받지 않는다.
 - `apps/batch/.../batch/adapter/out/read/WeeklyReminderTargetReader.kt:11` (`class WeeklyReminderTargetReader`) — WEEKLY_REMINDER 발송 대상 리더(shared-db §1: 7일 전 사진 업로드 이력 + 푸시동의). 대상 = `push_agreed=true`이면서 `businessDate-7일`에 업로드 이력이 있는 유저. `[최근 업로드 요일]` = 해당 유저 최근 업로드 일자의 요일(copy-spec §3).
 - `apps/batch/.../batch/adapter/out/read/KoreanWeekday.kt` (`object KoreanWeekday`, `:18 recentUploadLabel`) — `[최근 업로드 요일]` 변수 포맷(copy-spec §3 예시 "지난 토요일"). 가정: 최근 업로드 일자의 요일에 "지난 " 접두사. 정확한 카피 톤은 추후 조정 가능하도록 이 한 곳에 격리.
+
+## apps/batch — application (유스케이스)
+
+- `apps/batch/.../batch/application/HolidaySyncService.kt` (`class HolidaySyncService`) — 공휴일 원천(`HolidaySource`) → `holiday` 테이블(`HolidayStore`) 동기화 유스케이스. 원천이 CSV든 Sheet든 서비스는 불변 — 어댑터만 교체(헥사고날). `sync()`는 upsert 건수 반환.
 
 ## apps/batch — application/job (유스케이스 조립)
 
