@@ -87,20 +87,36 @@ TDD(테스트 우선)로 개발한다. 커버리지 목표:
 
 > 우리 소유 테이블(`notification_log`, `holiday`, `BATCH_*`)은 공유 DB Flyway 이력과 충돌하지 않도록 `apps:batch`의 자체 Flyway 경로(`db/migration` V1·V2)로 관리한다. 공휴일 데이터는 DB 의존을 끊고 CSV 소스(`CsvHolidaySource`)에서 동기화한다.
 
-## 진행 상황
+## 배포 / 실행 설정
 
-| Phase | 내용 | 상태 |
+> ⚠️ 운영 플래그는 모두 기본 `false`다. `@ConditionalOnProperty`로 **기동 시 1회만 평가**(빈 생성 게이팅)되므로, 값 변경은 **pod 재시작**으로만 반영된다 — 런타임 토글 불가.
+
+### 기능 플래그
+
+| 프로퍼티 | env (k8s) | 기본 | 효과 |
+| --- | --- | --- | --- |
+| `neki.fcm.enabled` | `NEKI_FCM_ENABLED` | `false` | `true`=`FcmPushSender`(실제 발송), `false`=`LoggingPushSender`(로그만) |
+| `neki.batch.scheduling-enabled` | `NEKI_BATCH_SCHEDULINGENABLED` | `false` | `true`라야 `@Scheduled` cron 스케줄러가 동작 (안 켜면 잡이 영원히 안 돎) |
+| `neki.batch.holiday-sync-enabled` | `NEKI_BATCH_HOLIDAYSYNCENABLED` | `false` | `true`면 기동 시 번들 CSV→`holiday` 테이블 시드 (없으면 HOLIDAY_EXPLORE 빈 발송) |
+
+### 필수 외부 설정 (k8s)
+
+| 항목 | 설정 | 비고 |
 | --- | --- | --- |
-| P0 | 멀티모듈 스캐폴드 | ✅ 완료 |
-| P1 | 도메인 코어 (문구 렌더링·톤 배정) | ✅ 완료 |
-| P2 | 포트 + 도메인 서비스 (`NotificationProcessor`) | ✅ 완료 |
-| P3 | 읽기 어댑터 (Jdbc, Reader 3종) | ✅ 완료 |
-| P4 | 쓰기 어댑터 + FCM (`FcmPushSender`/`LoggingPushSender`, jOOQ log) | ✅ 완료 |
-| P5 | 공휴일 지원 (CSV 동기화 + 캘린더) | ✅ 완료 |
-| P6 | 배치 Job 3종 (`WeeklyReminder`/`WeekendExplore`/`HolidayExplore`) | ✅ 완료 |
-| P7 | 스케줄링/설정 (`NotificationJobScheduler`) | ✅ 완료 |
+| DataSource | `SPRING_DATASOURCE_URL` / `_USERNAME` / `_PASSWORD` | `application.yml`에 datasource 블록이 없으므로 **주입 필수** |
+| DB 권한 | 연결 계정에 `CREATE TABLE` | 기동 시 Flyway가 `notification_log`·`holiday`·`BATCH_*`를 생성(`baseline-on-migrate=true`) |
+| FCM 자격증명 | 서비스계정 JSON을 **Secret 볼륨 마운트** + `NEKI_FCM_CREDENTIALSLOCATION=file:/path/sa.json` | `fcm.enabled=true`일 때 빈 생성 시점에 파일을 읽으므로 **파일이 실제 존재해야 기동 성공**(없으면 CrashLoop). env 문자열만으론 불가 |
 
-> 실제 발송 경로는 백엔드 FCM 토큰 테이블([#291](https://github.com/Team-Neki/Team-Neki-Server/issues/291)) 추가 전까지 `LoggingPushSender`로 대체 동작한다.
+### 외부 스키마 의존성 (k8s 밖 — 백엔드 책임)
+
+발송 대상 조회는 공유 DB의 외부 소유 테이블에 의존한다. 이 스키마가 맞지 않으면 **기동은 되지만 cron 잡 첫 실행에서 SQL 에러로 실패**한다(리더는 StepScope plain SQL이라 부팅 시점엔 검증되지 않음).
+
+| 테이블 · 컬럼 | 사용 잡 |
+| --- | --- |
+| `tb_notification.user_id`, `.device_token`, `.push_agreed` | 전체 |
+| `tb_photo_image.user_id`, `.created_at` | WEEKLY_REMINDER, HOLIDAY_EXPLORE |
+
+> FCM 토큰은 현재 리더가 `tb_notification.device_token` **컬럼**을 가정한다. 백엔드 [#291](https://github.com/Team-Neki/Team-Neki-Server/issues/291)이 **별도 테이블**로 구현되면 쿼리와 불일치하므로 머지 전 스키마 정합성 확인이 필요하다.
 
 ## 문서
 
