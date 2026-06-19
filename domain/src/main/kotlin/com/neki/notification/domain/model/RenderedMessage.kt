@@ -1,8 +1,5 @@
 package com.neki.notification.domain.model
 
-/**
- * 렌더링 결과 (copy-spec §6).
- */
 data class RenderedMessage(
     val title: String,
     val body: String,

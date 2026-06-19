@@ -14,12 +14,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.LocalDate
 
-/**
- * WEEKLY_REMINDER Job (batch-design §5): 7일 전 업로드 동의자에게 주간 리마인드.
- *
- * Reader가 `businessDate`(JobParameter)를 받아 7일 전 업로드 이력을 조회하고,
- * 변수 `[최근 업로드 요일]`을 채운다. 골격 조립은 [NotificationStepFactory]에 위임한다.
- */
 @Configuration("weeklyReminderJobConfig")
 class WeeklyReminderJob(
     private val steps: NotificationStepFactory,

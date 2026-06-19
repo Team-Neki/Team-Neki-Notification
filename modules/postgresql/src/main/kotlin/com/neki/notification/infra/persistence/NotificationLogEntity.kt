@@ -17,12 +17,6 @@ import jakarta.persistence.UniqueConstraint
 import java.time.Instant
 import java.time.LocalDate
 
-/**
- * 발송 이력 JPA 엔티티 (batch-design §6 notification_log).
- *
- * 중복 방지: UNIQUE (user_id, notification_type, business_date).
- * 본 앱 소유 테이블 — DDL은 별도 마이그레이션이 소유(application.yml ddl-auto=validate).
- */
 @Entity
 @Table(
     name = "notification_log",
