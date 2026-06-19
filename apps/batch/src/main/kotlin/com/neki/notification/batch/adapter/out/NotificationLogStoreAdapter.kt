@@ -13,7 +13,7 @@ import java.time.LocalDate
 @Component
 class NotificationLogStoreAdapter(
     private val repository: NotificationLogJpaRepository,
-    private val clock: Clock = Clock.systemUTC(),
+    private val clock: Clock,
 ) : NotificationLogStore {
 
     override fun alreadySent(userId: Long, type: NotificationType, businessDate: LocalDate): Boolean =
