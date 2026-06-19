@@ -2,7 +2,8 @@ package com.neki.notification.batch.adapter.out
 
 import com.neki.notification.application.port.out.HolidayCalendar
 import com.neki.notification.domain.model.Holiday
-import com.neki.notification.infra.persistence.HolidayJpaRepository
+import com.neki.notification.infra.jooq.Tables.HOLIDAY
+import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.time.LocalDate
@@ -10,16 +11,27 @@ import kotlin.math.abs
 
 @Component
 class HolidayCalendarAdapter(
-    private val repository: HolidayJpaRepository,
+    private val dsl: DSLContext,
 ) : HolidayCalendar {
 
     private val log = LoggerFactory.getLogger(javaClass)
 
     override fun holidayToNotifyOn(businessDate: LocalDate): Holiday? {
-        val candidates = repository.findByHolidayDateBetween(
-            businessDate.minusDays(SCAN_WINDOW),
-            businessDate.plusDays(SCAN_WINDOW),
-        ).map { it.toDomain() }
+        val candidates = dsl.selectFrom(HOLIDAY)
+            .where(
+                HOLIDAY.HOLIDAY_DATE.between(
+                    businessDate.minusDays(SCAN_WINDOW),
+                    businessDate.plusDays(SCAN_WINDOW),
+                ),
+            )
+            .fetch()
+            .map {
+                Holiday(
+                    date = it.holidayDate,
+                    name = it.name,
+                    notifyOffsetDays = it.notifyOffsetDays,
+                )
+            }
 
         candidates
             .filter { abs(it.notifyOffsetDays.toLong()) > MAX_OFFSET_DAYS }

@@ -1,12 +1,12 @@
 package com.neki.notification.batch.adapter.out.read
 
 import com.neki.notification.domain.model.SendTarget
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
+import org.jooq.DSLContext
 import org.springframework.stereotype.Component
 
 @Component
 class WeekendExploreTargetReader(
-    private val jdbc: NamedParameterJdbcTemplate,
+    private val dsl: DSLContext,
 ) {
     private val sql = """
         SELECT n.user_id, n.device_token
@@ -16,7 +16,5 @@ class WeekendExploreTargetReader(
     """.trimIndent()
 
     fun readPage(afterUserId: Long, pageSize: Int): List<SendTarget> =
-        jdbc.query(sql, TargetReaderSupport.pagingParams(afterUserId, pageSize)) { rs, _ ->
-            TargetReaderSupport.sendTarget(rs)
-        }
+        dsl.fetch(sql, afterUserId, pageSize).map { TargetReaderSupport.sendTarget(it) }
 }
