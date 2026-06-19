@@ -18,6 +18,14 @@ import org.springframework.stereotype.Component
 class LoggingPushSender : PushSender {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    init {
+        // 무발송 모드를 기동 시점에 크게 알려, 운영에서 "전 건 SKIPPED" 가 조용히 지나가지 않게 한다 (H-1).
+        log.warn(
+            "FCM 발송 비활성(neki.fcm.enabled != true): 실제 발송 없이 전 건 SKIPPED 처리됩니다. " +
+                "운영 환경이라면 neki.fcm.enabled=true 와 credentials-location 설정을 즉시 점검하세요.",
+        )
+    }
+
     override fun send(token: String, message: RenderedMessage): FcmResult {
         log.info("[FCM 비활성] 발송 생략 token={} title={}", token, message.title)
         return FcmResult.SKIPPED

@@ -23,6 +23,11 @@ class FcmPushSender(
 ) : PushSender {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    init {
+        // 실제 발송 모드임을 기동 로그로 명시해 LoggingPushSender(무발송)와 운영 상태를 구분한다 (H-1).
+        log.info("FCM 발송 활성화: Firebase Admin SDK로 실제 발송합니다.")
+    }
+
     override fun send(token: String, message: RenderedMessage): FcmResult =
         try {
             firebaseMessaging.send(
