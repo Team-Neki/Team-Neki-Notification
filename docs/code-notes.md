@@ -41,7 +41,7 @@
 
 ## 영속성 (jOOQ)
 
-jOOQ 마이그레이션(PR #13~)으로 JPA(Hibernate)·`modules/postgresql` 모듈을 제거하고 영속성을 `apps/batch`로 통합했다. 소유 테이블(`notification_log`, `holiday`)은 Flyway V1 DDL에서 jOOQ codegen으로 타입 생성(`com.neki.notification.infra.jooq`, `build/` 하위·미추적), 외부 소유 테이블(`tb_notification`/`tb_photo_image`)은 codegen 없이 plain SQL. 구체 구현은 `apps/batch — adapter/out` 섹션(`NotificationLogStoreAdapter`, `HolidayCalendarAdapter`, `read/*`) 및 `JooqConfig` 참조. 스키마 SSOT는 `apps/batch/src/main/resources/db/migration/V1__notification_schema.sql`.
+jOOQ 마이그레이션(PR #13~)으로 JPA(Hibernate)·`modules/postgresql` 모듈을 제거하고 영속성을 `apps/batch`로 통합했다(결정·근거: `docs/adr/0001-jooq-over-jpa.md`). 소유 테이블(`notification_log`, `holiday`)은 Flyway V1 DDL에서 jOOQ codegen으로 타입 생성(`com.neki.notification.infra.jooq`, `build/` 하위·미추적), 외부 소유 테이블(`tb_notification`/`tb_photo_image`)은 codegen 없이 plain SQL. 구체 구현은 `apps/batch — adapter/out` 섹션(`NotificationLogStoreAdapter`, `HolidayCalendarAdapter`, `read/*`) 및 `JooqConfig` 참조. 스키마 SSOT는 `apps/batch/src/main/resources/db/migration/V1__notification_schema.sql`.
 
 ## modules/fcm — FCM 기술 인프라
 
