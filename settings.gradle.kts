@@ -1,5 +1,9 @@
 rootProject.name = "team-neki-notification"
 
-include("domain")
-include("infra")
-include("application")
+include(
+    "apps:batch",
+    "domain",
+    "modules:postgresql",
+    "modules:fcm",
+    "modules:scheduling",
+)

@@ -44,6 +44,8 @@ subprojects {
 // Aggregate coverage across all modules.
 dependencies {
     kover(project(":domain"))
-    kover(project(":infra"))
-    kover(project(":application"))
+    kover(project(":modules:postgresql"))
+    kover(project(":modules:fcm"))
+    kover(project(":modules:scheduling"))
+    kover(project(":apps:batch"))
 }

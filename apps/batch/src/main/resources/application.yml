@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: team-neki-notification
+  batch:
+    job:
+      # Do not auto-run jobs on startup; jobs are launched explicitly (none defined yet in P0).
+      enabled: false
+    jdbc:
+      # A migration tool (Flyway/Liquibase) will own the BATCH_* schema; never auto-DDL on boot.
+      initialize-schema: never
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+# 스케줄링 기술 인프라 타임존 (modules/scheduling: 시계 + @Scheduled cron 공통 기준).
+scheduling:
+  zone: Asia/Seoul
+
+neki:
+  fcm:
+    # 발송 활성화 시 true + credentials-location 지정 (FirebaseConfig).
+    enabled: false
+  batch:
+    # 스케줄러(@Scheduled) 활성화. 운영에서만 true (NotificationJobScheduler).
+    scheduling-enabled: false
+    cron:
+      weekly: "0 0 20 * * *"            # 매일 20:00 — 아카이빙 1주일 리마인드
+      weekend: "0 0 18 * * FRI,SAT,SUN" # 금/토/일 18:00 — 주말 전 탐색
+      holiday: "0 0 9 * * *"            # 매일 09:00 — 발송일 판정 후 발송
