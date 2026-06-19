@@ -95,3 +95,7 @@
 - `apps/batch/.../batch/application/step/NotificationItemProcessor.kt:12` (`class NotificationItemProcessor`) — 발송 대상 → 발송 확정 변환(batch-design §5 Processor). 당일 중복 여부를 `logStore`로 조회한 뒤 `NotificationProcessor`로 판정. Skip(미동의/중복)이면 null 반환해 청크에서 필터.
 - `apps/batch/.../batch/application/step/NotificationItemWriter.kt:10` (`class NotificationItemWriter`) — 발송 + 이력 적재(batch-design §5 Composite Writer). 각 건을 FCM 발송하고 그 결과(SUCCESS/FAILED/SKIPPED)로 NotificationLog를 적재. 동일 키 동시 적재는 DB unique 제약이 최종 방어선.
 - `apps/batch/.../batch/application/step/PagingSendTargetItemReader.kt:6` (`class PagingSendTargetItemReader`) — keyset 페이징 `ItemReader`(batch-design §5 Reader). `user_id` 오름차순으로 페이지를 당겨 1건씩 흘려보낸다. 빈 페이지를 만나면 소진으로 보고 종료. 단일 인스턴스·단일 스레드 Step 전제(분산 락 불필요, batch-design §3).
+
+## apps/batch — test/architecture (아키텍처 제약)
+
+- `apps/batch/.../architecture/PersistenceScanBoundaryTest.kt` (`class PersistenceScanBoundaryTest`) — 컴포넌트 스캔 이중화 가드(B-3/M-1, ArchUnit). 루트 `@SpringBootApplication`은 `com.neki.notification` 전역을 스캔하지만 `PostgresPersistenceConfig`의 `@EntityScan`/`@EnableJpaRepositories`는 `com.neki.notification.infra.persistence`로 한정한다. 두 선언은 현재 멱등이나, JPA 엔티티/리포가 이 패키지 밖으로 이동하면 모듈 config가 조용히 누락한다. 이 테스트가 "JPA 엔티티·Spring Data 리포는 `infra.persistence` 하위에 둔다"는 제약을 고정해 드리프트를 CI에서 차단한다(이중 구조는 유지하되 제약을 테스트로 못박는 B-3 (b)안).
