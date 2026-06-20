@@ -38,6 +38,12 @@ dependencies {
     testImplementation(libs.mockk)
 }
 
+// 배포는 bootJar(레이어드 실행 가능 jar)만 사용한다. plain jar를 비활성화해
+// apps/batch/build/libs 에 jar가 하나만 남도록 하여 Dockerfile의 COPY(*.jar)를 모호하지 않게 한다.
+tasks.named<Jar>("jar") {
+    enabled = false
+}
+
 // 런타임 jOOQ(스타터, Boot BOM 관리)와 codegen 버전을 일치시킨다.
 jooq {
     version.set(libs.versions.jooq.get())

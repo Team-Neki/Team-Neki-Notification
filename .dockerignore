@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+.gitattributes
+.github
+
+# Gradle build outputs — boot jar(apps/batch/build/libs/*.jar)만 컨텍스트에 포함한다.
+# build 디렉토리 자체가 아니라 "내용"만 제외해야 하위 항목을 다시 포함할 수 있다(Docker 규칙).
+**/build/*
+!**/build/libs
+**/build/libs/*
+!**/build/libs/*.jar
+.gradle
+.kotlin
+
+# IDE
+.idea
+*.iml
+*.iws
+*.ipr
+.vscode
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yaml
+docker-compose.yml
+
+# Documentation / 메타
+README.md
+*.md
+docs/
+
+# Tooling
+.omc/
+.claude/
+
+# Secrets
+*firebase*.json
