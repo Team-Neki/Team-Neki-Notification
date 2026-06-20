@@ -1,0 +1,14 @@
+# prod 프로파일 — 운영에서만 활성화하는 토글 모음.
+# Dockerfile의 SPRING_PROFILES_ACTIVE=prod 로 활성화된다.
+# base application.yml의 기본값(false)을 운영에서 true로 오버라이드한다.
+neki:
+  fcm:
+    # 실제 FCM 발송 활성화. credentials-location 필수(FirebaseConfig).
+    enabled: true
+    # Firebase 서비스 계정 JSON. K8s Secret을 파일로 마운트한 경로를 참조한다.
+    credentials-location: file:/etc/firebase/firebase-service-account.json
+  batch:
+    # 스케줄러(@Scheduled, NotificationJobScheduler) 활성화.
+    scheduling-enabled: true
+    # 기동 시 공휴일 CSV → holiday 테이블 동기화 활성화(HolidaySyncRunner).
+    holiday-sync-enabled: true

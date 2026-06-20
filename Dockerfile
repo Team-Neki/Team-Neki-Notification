@@ -35,7 +35,7 @@ COPY --from=builder --chown=spring:spring /app/application/ ./
 USER spring:spring
 
 # 환경변수 설정 (기본값, 런타임에 오버라이드 가능)
-# headless 배치 앱: 웹 서버 없이 앱 내부 @Scheduled cron으로 잡을 구동한다.
+# 앱 내부 @Scheduled cron으로 잡을 구동하며, actuator 헬스(8080)를 K8s 프로브에 노출한다.
 ENV TZ=Asia/Seoul
 ENV SPRING_PROFILES_ACTIVE=prod
 

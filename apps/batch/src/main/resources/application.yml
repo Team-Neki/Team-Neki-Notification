@@ -14,6 +14,27 @@ spring:
     # 소유한다 (initialize-schema=never 와 정합).
     baseline-on-migrate: true
 
+# K8s preStop(sleep 10) + terminationGracePeriodSeconds(30)와 정합하는 graceful shutdown.
+server:
+  shutdown: graceful
+
+# Actuator 헬스 — GitOps Deployment의 startup/liveness 프로브가 참조한다.
+# /actuator/health/liveness · /actuator/health/readiness (8080)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+
 # 스케줄링 기술 인프라 타임존 (modules/scheduling: 시계 + @Scheduled cron 공통 기준).
 scheduling:
   zone: Asia/Seoul
