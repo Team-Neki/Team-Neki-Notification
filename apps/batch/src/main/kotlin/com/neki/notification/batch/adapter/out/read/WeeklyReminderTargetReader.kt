@@ -14,12 +14,14 @@ class WeeklyReminderTargetReader(
     private val sql = """
         SELECT n.user_id,
                n.device_token,
-               (SELECT MAX(p.created_at) FROM tb_photo_image p WHERE p.user_id = n.user_id) AS last_upload
+               (SELECT MAX(p.created_at) FROM tb_photo_image p
+                 WHERE p.user_id = n.user_id AND p.deleted_at IS NULL) AS last_upload
         FROM tb_notification n
         WHERE ${TargetReaderSupport.PAGING_PREDICATE}
           AND EXISTS (
               SELECT 1 FROM tb_photo_image p2
               WHERE p2.user_id = n.user_id
+                AND p2.deleted_at IS NULL
                 AND p2.created_at >= ?
                 AND p2.created_at < ?
           )
