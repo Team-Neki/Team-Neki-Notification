@@ -16,6 +16,10 @@ dependencies {
     implementation(project(":modules:scheduling"))
 
     implementation(libs.spring.boot.starter)
+    // GitOps prod Deployment가 httpGet /actuator/health/{liveness,readiness} (8080) 프로브를 사용하므로
+    // 헬스 엔드포인트 노출용 web + actuator 스타터를 포함한다.
+    implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.actuator)
     implementation(libs.spring.boot.starter.batch)
     // jOOQ 스타터가 jdbc(DataSource·DataSourceTransactionManager)를 전이로 제공하지만,
     // read/* 리더와 Spring Batch가 직접 의존하므로 JDBC 스타터를 명시한다(H-2).
@@ -36,6 +40,12 @@ dependencies {
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.mockk)
+}
+
+// 배포는 bootJar(레이어드 실행 가능 jar)만 사용한다. plain jar를 비활성화해
+// apps/batch/build/libs 에 jar가 하나만 남도록 하여 Dockerfile의 COPY(*.jar)를 모호하지 않게 한다.
+tasks.named<Jar>("jar") {
+    enabled = false
 }
 
 // 런타임 jOOQ(스타터, Boot BOM 관리)와 codegen 버전을 일치시킨다.
