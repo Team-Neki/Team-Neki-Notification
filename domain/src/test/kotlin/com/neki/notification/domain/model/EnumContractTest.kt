@@ -58,12 +58,10 @@ class EnumContractTest {
         val target = SendTarget(
             userId = 42L,
             fcmToken = "token-abc",
-            pushConsent = true,
         )
 
         assertEquals(42L, target.userId)
         assertEquals("token-abc", target.fcmToken)
-        assertTrue(target.pushConsent)
         assertTrue(target.variables.isEmpty(), "variables must default to an empty map")
     }
 
@@ -73,12 +71,10 @@ class EnumContractTest {
         val target = SendTarget(
             userId = 7L,
             fcmToken = "token-xyz",
-            pushConsent = false,
             variables = vars,
         )
 
         assertEquals(vars, target.variables)
         assertEquals("지난 토요일", target.variables[MessageVariable.RECENT_UPLOAD_DAY])
-        assertEquals(false, target.pushConsent)
     }
 }

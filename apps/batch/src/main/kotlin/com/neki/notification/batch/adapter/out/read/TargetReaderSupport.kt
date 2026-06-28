@@ -17,7 +17,6 @@ internal object TargetReaderSupport {
         SendTarget(
             userId = record.get("user_id", Long::class.java),
             fcmToken = record.get("device_token", String::class.java),
-            pushConsent = true,
             variables = variables,
         )
 }
