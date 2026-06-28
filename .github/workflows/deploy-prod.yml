@@ -7,8 +7,8 @@ on:
   workflow_dispatch:  # 수동 실행 가능
 
 env:
-  # GitOps overlays/prod/notification-deployment.yaml 의 image(zxz4641/neki-notification)와 일치해야 한다.
-  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/neki-notification
+  # GitOps overlays/prod/notification-deployment.yaml 의 image와 일치해야 한다.
+  DOCKER_IMAGE: ${{ secrets.DOCKER_USERNAME }}/neki-batch-prod
   GITOPS_REPO: Team-Neki/Team-Neki-GitOps
   GITOPS_PATH: overlays/prod/notification-deployment.yaml
 
@@ -82,7 +82,7 @@ jobs:
           echo "📦 Updating image to: $NEW_IMAGE"
 
           # notification-deployment.yaml의 이미지 태그 업데이트
-          sed -i "s|image: .*neki-notification:.*|image: $NEW_IMAGE|g" ${{ env.GITOPS_PATH }}
+          sed -i "s|image: .*neki-batch-prod:.*|image: $NEW_IMAGE|g" ${{ env.GITOPS_PATH }}
 
           # 변경사항 확인
           echo "📄 Updated notification-deployment.yaml:"
