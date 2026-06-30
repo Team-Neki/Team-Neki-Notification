@@ -29,6 +29,8 @@ dependencies {
     runtimeOnly(libs.flyway.database.postgresql)
     implementation(libs.firebase.admin)
     runtimeOnly(libs.postgresql)
+    // prod 프로파일의 spring.datasource ENC(...) 값을 JASYPT_PASSWORD 로 복호화한다(서버 앱과 동일 공유 DB).
+    implementation("com.github.ulisesbocchio:jasypt-spring-boot-starter:3.0.5")
 
     // jOOQ 코드 생성: 소유 테이블(Flyway V1 DDL)에서만 타입 생성. 외부 소유 테이블은 plain SQL.
     jooqGenerator(libs.jooq.meta.extensions)
