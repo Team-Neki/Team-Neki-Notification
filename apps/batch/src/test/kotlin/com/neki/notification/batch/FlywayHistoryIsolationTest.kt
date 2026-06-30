@@ -94,6 +94,36 @@ class FlywayHistoryIsolationTest {
         }
     }
 
+    @Test
+    fun `baseline-on-migrate=false 는 non-empty 공유 스키마에서 실패한다(설정 선택 근거)`() {
+        val url = postgres.jdbcUrl
+        val user = postgres.username
+        val pw = postgres.password
+
+        // 외부(server) 소유 테이블이 이미 존재 → 공유 스키마가 non-empty
+        DriverManager.getConnection(url, user, pw).use { conn ->
+            conn.createStatement().use { st ->
+                st.execute("CREATE TABLE tb_external_owned (id BIGINT PRIMARY KEY)")
+            }
+        }
+
+        // 전용 history 테이블은 아직 없는데 baseline 채택을 끄면(false),
+        // Flyway 는 "Found non-empty schema but no schema history table" 로 던진다.
+        // → 따라서 baseline-on-migrate=true + baseline-version=0 조합이어야 한다.
+        val flyway = Flyway.configure()
+            .dataSource(url, user, pw)
+            .table("flyway_schema_history_notification")
+            .baselineOnMigrate(false)
+            .locations("classpath:db/migration")
+            .load()
+
+        val ex = org.junit.jupiter.api.assertThrows<Exception> { flyway.migrate() }
+        assertTrue(
+            ex.message?.contains("non-empty", ignoreCase = true) == true,
+            "non-empty 스키마 + history 테이블 없음 → baseline 없이 실패해야 한다. 실제: ${ex.message}",
+        )
+    }
+
     private fun tableExists(st: java.sql.Statement, name: String): Boolean =
         st.executeQuery(
             "SELECT to_regclass('public.$name') IS NOT NULL",
@@ -102,9 +132,7 @@ class FlywayHistoryIsolationTest {
             rs.getBoolean(1)
         }
 
-    companion object {
-        @Container
-        @JvmStatic
-        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:16-alpine")
-    }
+    // 인스턴스 필드 @Container → 테스트 메서드마다 새 컨테이너로 격리(두 테스트가 같은 스키마를 오염시키지 않도록).
+    @Container
+    val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:16-alpine")
 }
