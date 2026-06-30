@@ -1,10 +1,9 @@
 name: Deploy to Prod (K3s + GitOps)
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:  # 수동 실행 가능
+  # main 머지 시 자동 배포하지 않는다.
+  # 배포는 GitHub Actions 탭의 "Run workflow"(workflow_dispatch)로만 수동 트리거한다.
+  workflow_dispatch:  # 수동 배포 전용
 
 env:
   # GitOps overlays/prod/notification-deployment.yaml 의 image와 일치해야 한다.
