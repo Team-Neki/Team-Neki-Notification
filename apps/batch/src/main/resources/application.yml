@@ -9,10 +9,15 @@ spring:
       # Flyway(V2__spring_batch_schema.sql)가 BATCH_* 스키마를 소유한다; 부팅 시 auto-DDL 금지.
       initialize-schema: never
   flyway:
-    # 공유 DB에는 외부 소유 테이블(tb_notification, tb_photo_image)이 이미 존재하므로 첫 마이그레이션 시
-    # baseline 처리해 공존한다. Flyway가 앱 테이블(notification_log, holiday)과 Spring Batch 메타스키마를
-    # 소유한다 (initialize-schema=never 와 정합).
+    # 이 앱은 team-neki-server 와 동일한 공유 DB 를 사용한다. 두 앱이 기본 flyway_schema_history
+    # 테이블을 공유하면 서로의 V1/V2 가 같은 version 번호로 충돌(checksum mismatch)해 기동이 깨진다.
+    # → 이 앱 전용 history 테이블로 분리한다. server 의 flyway_schema_history 와 독립적으로 동작.
+    table: flyway_schema_history_notification
+    # 공유 스키마에는 외부 소유 테이블(tb_notification, tb_photo_image 등)이 이미 존재(non-empty)하므로
+    # baseline 으로 채택한다. 단 baseline-version=0 으로 두어 V1(notification_log/holiday)부터
+    # 전부 적용되게 한다(기본값 1 이면 V1 이 baseline 으로 skip 되어 소유 테이블이 생성되지 않음).
     baseline-on-migrate: true
+    baseline-version: "0"
 
 # K8s preStop(sleep 10) + terminationGracePeriodSeconds(30)와 정합하는 graceful shutdown.
 server:
