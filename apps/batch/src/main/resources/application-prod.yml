@@ -1,6 +1,22 @@
 # prod 프로파일 — 운영에서만 활성화하는 토글 모음.
 # Dockerfile의 SPRING_PROFILES_ACTIVE=prod 로 활성화된다.
 # base application.yml의 기본값(false)을 운영에서 true로 오버라이드한다.
+
+# 공유 DB(서버 앱과 동일 PostgreSQL) 접속 정보. base 에는 datasource 가 없고
+# 테스트는 Testcontainers 가 주입하므로, 운영 접속 정보는 prod 프로파일에서만 설정한다.
+# ENC(...) 값은 서버 앱(application-prod.yaml)과 동일하며 JASYPT_PASSWORD 로 복호화된다.
+spring:
+  datasource:
+    url: ENC(6L4dscI6gdDvPaOeWbdeRxoASDBa1/iRneNln/W5umyHZv8npjPwh+ROkrO2ATZT7e0ymaL4fyjaUmSG1xny/OhQ95SrWvqcU9NnrOrUJ0I=)
+    username: ENC(ckNqwRnQTGzy/R/bFMEEpMkHVxegFfkh60se3lsaCcsmF+YicL5deoidwLWXu77b)
+    password: ENC(O5jXrCBCxZB15KDnjiPpj6bwZUf9PkdfgFpiRvijihT9665rlQwvKv6FWv9xZb6X)
+    driver-class-name: org.postgresql.Driver
+
+# spring.datasource 의 ENC(...) 복호화 키. 컨테이너 env JASYPT_PASSWORD(neki-secrets) 주입.
+jasypt:
+  encryptor:
+    password: ${JASYPT_PASSWORD}
+
 neki:
   fcm:
     # 실제 FCM 발송 활성화. credentials-location 필수(FirebaseConfig).
