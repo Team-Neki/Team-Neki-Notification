@@ -5,11 +5,13 @@ import com.neki.notification.application.port.out.PushSender
 import com.neki.notification.batch.application.step.NotificationItemProcessor
 import com.neki.notification.batch.application.step.NotificationItemWriter
 import com.neki.notification.batch.application.step.PagingSendTargetItemReader
+import com.neki.notification.batch.application.step.SendResultSummaryListener
 import com.neki.notification.domain.model.NotificationType
 import com.neki.notification.domain.model.PreparedNotification
 import com.neki.notification.domain.model.SendTarget
 import org.springframework.batch.core.Job
 import org.springframework.batch.core.Step
+import org.springframework.batch.core.StepExecutionListener
 import org.springframework.batch.core.job.builder.JobBuilder
 import org.springframework.batch.core.repository.JobRepository
 import org.springframework.batch.core.step.builder.StepBuilder
@@ -36,6 +38,7 @@ class NotificationStepFactory(
 
     fun chunkStep(
         name: String,
+        type: NotificationType,
         reader: ItemReader<SendTarget>,
         processor: ItemProcessor<SendTarget, PreparedNotification>,
     ): Step =
@@ -44,6 +47,7 @@ class NotificationStepFactory(
             .reader(reader)
             .processor(processor)
             .writer(writer)
+            .listener(SendResultSummaryListener(type, logStore) as StepExecutionListener)
             .build()
 
     fun singleStepJob(name: String, step: Step): Job =
