@@ -83,7 +83,7 @@ TDD(테스트 우선)로 개발한다. 커버리지 목표:
 | 항목 | 상태 | 영향 |
 | --- | --- | --- |
 | 푸시 동의 컬럼 (`tb_notification.push_agreed`) | ✅ 사용 중 | **현행 동의 판정의 단일 출처**. Reader 쿼리 `push_agreed = true` |
-| FCM 토큰 (`tb_notification.device_token` 컬럼 가정) | ⚠️ 컬럼 전제 | 백엔드 [#291](https://github.com/Team-Neki/Team-Neki-Server/issues/291)이 별도 테이블로 가면 쿼리 불일치 → 머지 전 정합성 확인 |
+| FCM 토큰 (`tb_notification.device_token` 컬럼 가정) | ✅ 사용 중 | 백엔드 [#291](https://github.com/Team-Neki/Team-Neki-Server/issues/291)이 별도 테이블로 가면 쿼리 불일치 → 머지 전 정합성 확인 |
 | 지도/길찾기 이력 (이슈 [#292](https://github.com/Team-Neki/Team-Neki-Server/issues/292)) | ⏸ 보류(open) | HOLIDAY_EXPLORE 타겟 축소 |
 
 > 참고: 마케팅 약관 기반 동의(`TB_USER_TERM_AGREEMENT.withdrawn_at IS NULL`, PR [#290](https://github.com/Team-Neki/Team-Neki-Server/pull/290))는 초기 설계안이었으나 **현재 코드는 이 조인을 쓰지 않고** `tb_notification.push_agreed`로 단순화되어 있다(정책: [notification-policy §4](docs/prd/notification-policy.md)).
