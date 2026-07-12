@@ -60,6 +60,9 @@ class NotificationWriterIsolationTest {
                     if (log.userId == FAIL_USER_ID) error("의도된 적재 실패 user=$FAIL_USER_ID")
                     adapter.save(log)
                 }
+
+                override fun countByResult(type: NotificationType, businessDate: LocalDate) =
+                    adapter.countByResult(type, businessDate)
             }
     }
 

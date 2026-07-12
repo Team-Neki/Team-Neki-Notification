@@ -39,7 +39,7 @@ class WeeklyReminderJob(
     fun weeklyStep(
         weeklyItemReader: ItemReader<SendTarget>,
         weeklyItemProcessor: ItemProcessor<SendTarget, PreparedNotification>,
-    ): Step = steps.chunkStep(STEP_NAME, weeklyItemReader, weeklyItemProcessor)
+    ): Step = steps.chunkStep(STEP_NAME, NotificationType.WEEKLY_REMINDER, weeklyItemReader, weeklyItemProcessor)
 
     @Bean(name = [JOB_NAME])
     fun weeklyReminderJob(weeklyStep: Step): Job = steps.singleStepJob(JOB_NAME, weeklyStep)

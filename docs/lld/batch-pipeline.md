@@ -37,6 +37,8 @@ Writer는 **send-then-save** dual-write다: FCM 발송은 트랜잭션 밖 외�
 - 청크 > 1이면: 한 건의 `save()` 실패가 **같은 청크에서 이미 FCM 발송된 다른 건들의 적재까지 롤백**시킨다. 재실행 시 `alreadySent`는 커밋된 이력만 보므로, 롤백된 건들이 다시 발송된다(중복).
 - 청크 = 1이면: 블라스트 반경이 "실패한 그 1건"으로 한정된다.
 
+> **트랜잭션 경계 판단**: 트랜잭션 단위는 스텝이 아니라 **청크**이고, `CHUNK_SIZE=1`이라 실질적으로 건별 커밋이다. 이 워크로드에서 적절하다 — 발송은 토큰별 FCM 네트워크 호출이 지배적이라 건별 DB 커밋 오버헤드는 상대적으로 미미하고, 청크를 키워 얻는 처리량 이득보다 중복 발송 리스크(위)가 크다. 처리량이 병목이 되면 청크 확대가 아니라 **FCM 배치 전송(sendEach, 토큰당 결과 유지) + 발송 전 멱등 클레임**으로 가야 한다.
+
 ## 5. 잔여 중복 창 (at-least-once)
 
 CHUNK_SIZE=1이어도 완전한 exactly-once는 아니다.
@@ -52,6 +54,19 @@ CHUNK_SIZE=1이어도 완전한 exactly-once는 아니다.
 3. **중복 기동 방어** — `NotificationJobLauncher.launch()`가 `JobExplorer.findRunningJobExecutions`로 실행 중 동일 잡이 있으면 건너뜀.
 
 → 실질 재전송 위험은 §5의 "발송 도중 kill + 당일 재실행"이 겹치는 최대 1건.
+
+## 9. 발송 결과 요약 로깅 (`SendResultSummaryListener`)
+
+스텝(=잡) 종료 시 `StepExecutionListener.afterStep`이 `notification_log`를 `(type, businessDate)`로 집계해 결과 분포를 남긴다.
+
+```
+[WEEKEND_EXPLORE] FCM 발송 요약 businessDate=2026-07-13: 총 1000건 (SUCCESS=950, FAILED=30, SKIPPED=20)
+```
+
+- **집계 단위 = 잡(스텝 실행)**. 청크 단위 집계는 `CHUNK_SIZE=1`이라 항상 "1건"이 되어 무의미하므로 채택하지 않는다.
+- **커밋된 이력을 조회**하므로 writer의 인메모리 상태에 의존하지 않는다(무상태). 발송된 각 대상은 정확히 1건의 이력을 가지고 재처리되지 않으므로(FAILED 이력도 `alreadySent`로 재시도 안 됨), `(type, businessDate)` 집계 = 이 발송의 결과 분포와 일치한다.
+- 동일 수치를 `StepExecution.executionContext`(`fcm.total/success/failed/skipped`)에도 기록해 Batch 메타에서 관측 가능.
+- `SUCCESS`=실발송(`FcmPushSender`), `FAILED`=전송 예외 흡수, `SKIPPED`=무발송 모드(`LoggingPushSender`). 중복/미동의로 Processor에서 걸러진 건은 이력이 없어 집계에 포함되지 않는다.
 
 ## 7. 중복/동시 기동 방어 상세
 

@@ -35,7 +35,7 @@ class WeekendExploreJob(
     fun weekendStep(
         weekendItemReader: ItemReader<SendTarget>,
         weekendItemProcessor: ItemProcessor<SendTarget, PreparedNotification>,
-    ): Step = steps.chunkStep(STEP_NAME, weekendItemReader, weekendItemProcessor)
+    ): Step = steps.chunkStep(STEP_NAME, NotificationType.WEEKEND_EXPLORE, weekendItemReader, weekendItemProcessor)
 
     @Bean(name = [JOB_NAME])
     fun weekendExploreJob(weekendStep: Step): Job = steps.singleStepJob(JOB_NAME, weekendStep)
