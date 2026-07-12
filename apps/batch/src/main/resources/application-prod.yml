@@ -7,9 +7,9 @@
 # ENC(...) 값은 서버 앱(application-prod.yaml)과 동일하며 JASYPT_PASSWORD 로 복호화된다.
 spring:
   datasource:
-    url: ENC(6L4dscI6gdDvPaOeWbdeRxoASDBa1/iRneNln/W5umyHZv8npjPwh+ROkrO2ATZT7e0ymaL4fyjaUmSG1xny/OhQ95SrWvqcU9NnrOrUJ0I=)
-    username: ENC(ckNqwRnQTGzy/R/bFMEEpMkHVxegFfkh60se3lsaCcsmF+YicL5deoidwLWXu77b)
-    password: ENC(O5jXrCBCxZB15KDnjiPpj6bwZUf9PkdfgFpiRvijihT9665rlQwvKv6FWv9xZb6X)
+    url: ENC(AmDvsCFY2Vq8yQXuOgeI4qN7+uA87U8LKE0yuCDn4ovkEZCx58EK4/MuT0PGONEO5a/QXa99lyb+y/a7tsB4lLI75u1c21zKRpK3pmoHnKQ=)
+    username: ENC(QDJi9eo/oaaH4mdFbNIdrEHaORLFWxfzxbu8deKq4XF5FT1Q6wHmr6aDEeT7MPfj)
+    password: ENC(9wwfOZ6QBe0UCAAJyZjSJgkemsIWGxC5KyxmzQ9WSdE5I67/RNh+89NVFqo5oU52)
     driver-class-name: org.postgresql.Driver
 
 # spring.datasource 의 ENC(...) 복호화 키. 컨테이너 env JASYPT_PASSWORD(neki-secrets) 주입.
