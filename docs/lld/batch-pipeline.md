@@ -15,7 +15,7 @@ Writer                   → FCM 발송(send) → notification_log 적재(save)
 
 - **Reader**: `PagingSendTargetItemReader`(keyset 페이징). `user_id > cursor`로 페이지를 당겨 1건씩 흘리고, 빈 페이지를 만나면 소진으로 종료. 단일 인스턴스·단일 스레드 전제.
 - **Processor**: `NotificationItemProcessor`. `logStore.alreadySent(userId, type, businessDate)` → `NotificationProcessor.decide()`. Skip이면 `null` 반환해 청크에서 필터링. (동의 재확인은 하지 않음 — 동의는 Reader 쿼리 `push_agreed=true`가 단일 출처.)
-- **Writer**: `NotificationItemWriter`. 각 건을 `pushSender.send()` 후 결과(SUCCESS/FAILED/SKIPPED)로 `NotificationLog`를 적재.
+- **Writer**: `NotificationItemWriter`. 각 건을 `pushSender.send()` 후 결과 상태(`SENT`/`FAILED`/`DEAD`/`SKIPPED`, `NotificationStatus`)로 `NotificationLog`를 적재([ADR 0002](../adr/0002-notification-log-status-single-table.md)).
 
 ## 2. 조립 상수 (`NotificationStepFactory`)
 
@@ -44,7 +44,7 @@ Writer는 **send-then-save** dual-write다: FCM 발송은 트랜잭션 밖 외�
 CHUNK_SIZE=1이어도 완전한 exactly-once는 아니다.
 
 - **위험 시나리오**: 한 건에 대해 `send()`는 성공했는데 `save()` 직전/도중 프로세스가 죽으면(예: rollout으로 pod kill), 그 유저는 푸시를 받았지만 이력이 없다 → 같은 `businessDate`로 재실행 시 `alreadySent=false`로 판정되어 **1회 중복 발송**.
-- **완화 요인**: `FcmPushSender`는 토큰 단위 전송 실패를 `FcmResult.FAILED`로 흡수해 청크를 중단시키지 않으므로, 청크 중단은 사실상 `save()`(DB) 실패에 한정 → 드묾. 단일 인스턴스 전제라 동시 실행 경합도 없음.
+- **완화 요인**: `FcmPushSender`는 토큰 단위 전송 실패를 `FAILED`/`DEAD` 상태로 흡수해 청크를 중단시키지 않으므로, 청크 중단은 사실상 `save()`(DB) 실패에 한정 → 드묾. 단일 인스턴스 전제라 동시 실행 경합도 없음.
 - **완전 at-most-once가 필요해지면**(예: 다중 인스턴스화): 발송 전에 별도 트랜잭션으로 unique 제약을 선점하는 멱등 클레임 패턴으로 강화.
 
 ## 6. rollout(재배포) 시 재전송 여부
@@ -60,13 +60,13 @@ CHUNK_SIZE=1이어도 완전한 exactly-once는 아니다.
 스텝(=잡) 종료 시 `StepExecutionListener.afterStep`이 `notification_log`를 `(type, businessDate)`로 집계해 결과 분포를 남긴다.
 
 ```
-[WEEKEND_EXPLORE] FCM 발송 요약 businessDate=2026-07-13: 총 1000건 (SUCCESS=950, FAILED=30, SKIPPED=20)
+[WEEKEND_EXPLORE] 발송 요약 businessDate=2026-07-13: 총 1000건 (SENT=940, FAILED=25, DEAD=15, SKIPPED=20)
 ```
 
 - **집계 단위 = 잡(스텝 실행)**. 청크 단위 집계는 `CHUNK_SIZE=1`이라 항상 "1건"이 되어 무의미하므로 채택하지 않는다.
-- **커밋된 이력을 조회**하므로 writer의 인메모리 상태에 의존하지 않는다(무상태). 발송된 각 대상은 정확히 1건의 이력을 가지고 재처리되지 않으므로(FAILED 이력도 `alreadySent`로 재시도 안 됨), `(type, businessDate)` 집계 = 이 발송의 결과 분포와 일치한다.
-- 동일 수치를 `StepExecution.executionContext`(`fcm.total/success/failed/skipped`)에도 기록해 Batch 메타에서 관측 가능.
-- `SUCCESS`=실발송(`FcmPushSender`), `FAILED`=전송 예외 흡수, `SKIPPED`=무발송 모드(`LoggingPushSender`). 중복/미동의로 Processor에서 걸러진 건은 이력이 없어 집계에 포함되지 않는다.
+- **커밋된 이력을 조회**(`countByStatus`)하므로 writer의 인메모리 상태에 의존하지 않는다(무상태). 발송된 각 대상은 정확히 1건의 이력을 가지고 재처리되지 않으므로(FAILED/DEAD 이력도 `alreadySent`로 재시도 안 됨), `(type, businessDate)` 집계 = 이 발송의 결과 분포와 일치한다.
+- 동일 수치를 `StepExecution.executionContext`(`notif.total/sent/failed/dead/skipped`)에도 기록해 Batch 메타에서 관측 가능.
+- 상태 값([ADR 0002](../adr/0002-notification-log-status-single-table.md)): `SENT`=실발송, `FAILED`=일시 실패, `DEAD`=영구 실패(무효 토큰 등, 재시도 무의미), `SKIPPED`=무발송 모드(`LoggingPushSender`). 중복/미동의로 Processor에서 걸러진 건은 이력이 없어 집계에 포함되지 않는다.
 
 ## 7. 중복/동시 기동 방어 상세
 

@@ -1,8 +1,8 @@
 package com.neki.notification.batch.adapter.out
 
 import com.neki.notification.application.port.out.NotificationLogStore
-import com.neki.notification.domain.model.FcmResult
 import com.neki.notification.domain.model.NotificationLog
+import com.neki.notification.domain.model.NotificationStatus
 import com.neki.notification.domain.model.NotificationType
 import com.neki.notification.infra.jooq.Tables.NOTIFICATION_LOG
 import org.jooq.DSLContext
@@ -28,14 +28,14 @@ class NotificationLogStoreAdapter(
                 .and(NOTIFICATION_LOG.BUSINESS_DATE.eq(businessDate)),
         )
 
-    override fun countByResult(type: NotificationType, businessDate: LocalDate): Map<FcmResult, Long> =
-        dsl.select(NOTIFICATION_LOG.FCM_RESULT, DSL.count())
+    override fun countByStatus(type: NotificationType, businessDate: LocalDate): Map<NotificationStatus, Long> =
+        dsl.select(NOTIFICATION_LOG.STATUS, DSL.count())
             .from(NOTIFICATION_LOG)
             .where(NOTIFICATION_LOG.NOTIFICATION_TYPE.eq(type.name))
             .and(NOTIFICATION_LOG.BUSINESS_DATE.eq(businessDate))
-            .groupBy(NOTIFICATION_LOG.FCM_RESULT)
+            .groupBy(NOTIFICATION_LOG.STATUS)
             .fetch()
-            .associate { FcmResult.valueOf(it.value1()) to it.value2().toLong() }
+            .associate { NotificationStatus.valueOf(it.value1()) to it.value2().toLong() }
 
     override fun save(log: NotificationLog) {
         val sentAt = (log.sentAt ?: Instant.now(clock)).atOffset(ZoneOffset.UTC)
@@ -47,7 +47,7 @@ class NotificationLogStoreAdapter(
             .set(NOTIFICATION_LOG.TITLE, log.title)
             .set(NOTIFICATION_LOG.BODY, log.body)
             .set(NOTIFICATION_LOG.BUSINESS_DATE, log.businessDate)
-            .set(NOTIFICATION_LOG.FCM_RESULT, log.fcmResult.name)
+            .set(NOTIFICATION_LOG.STATUS, log.status.name)
             .set(NOTIFICATION_LOG.SENT_AT, sentAt)
             .execute()
     }

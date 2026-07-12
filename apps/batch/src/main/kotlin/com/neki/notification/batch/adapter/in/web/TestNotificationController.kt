@@ -2,8 +2,8 @@ package com.neki.notification.batch.adapter.`in`.web
 
 import com.neki.notification.application.port.out.PushSender
 import com.neki.notification.batch.application.launch.NotificationJobLauncher
-import com.neki.notification.domain.model.FcmResult
 import com.neki.notification.domain.model.MessageTone
+import com.neki.notification.domain.model.NotificationStatus
 import com.neki.notification.domain.model.RenderedMessage
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -73,7 +73,7 @@ class TestNotificationController(
             actualTone = tone ?: MessageTone.INFORMATIVE,
             variableApplied = false,
         )
-        val result: FcmResult = pushSender.send(token, message)
+        val result: NotificationStatus = pushSender.send(token, message)
         return PushTestResponse(token, result)
     }
 }
@@ -87,5 +87,5 @@ data class TriggerJobResponse(
 
 data class PushTestResponse(
     val token: String,
-    val result: FcmResult,
+    val result: NotificationStatus,
 )

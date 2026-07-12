@@ -1,7 +1,7 @@
 package com.neki.notification.batch.application.step
 
 import com.neki.notification.application.port.out.NotificationLogStore
-import com.neki.notification.domain.model.FcmResult
+import com.neki.notification.domain.model.NotificationStatus
 import com.neki.notification.domain.model.NotificationType
 import org.slf4j.LoggerFactory
 import org.springframework.batch.core.ExitStatus
@@ -28,23 +28,25 @@ class SendResultSummaryListener(
             ?.let(LocalDate::parse)
             ?: return stepExecution.exitStatus
 
-        val counts = logStore.countByResult(type, businessDate)
-        val success = counts[FcmResult.SUCCESS] ?: 0L
-        val failed = counts[FcmResult.FAILED] ?: 0L
-        val skipped = counts[FcmResult.SKIPPED] ?: 0L
-        val total = success + failed + skipped
+        val counts = logStore.countByStatus(type, businessDate)
+        val sent = counts[NotificationStatus.SENT] ?: 0L
+        val failed = counts[NotificationStatus.FAILED] ?: 0L
+        val dead = counts[NotificationStatus.DEAD] ?: 0L
+        val skipped = counts[NotificationStatus.SKIPPED] ?: 0L
+        val total = sent + failed + dead + skipped
 
         // 운영 관측/테스트를 위해 스텝 실행 컨텍스트에도 기록한다(Batch 메타에 남음).
         stepExecution.executionContext.apply {
-            putLong("fcm.total", total)
-            putLong("fcm.success", success)
-            putLong("fcm.failed", failed)
-            putLong("fcm.skipped", skipped)
+            putLong("notif.total", total)
+            putLong("notif.sent", sent)
+            putLong("notif.failed", failed)
+            putLong("notif.dead", dead)
+            putLong("notif.skipped", skipped)
         }
 
         log.info(
-            "[{}] FCM 발송 요약 businessDate={}: 총 {}건 (SUCCESS={}, FAILED={}, SKIPPED={})",
-            type, businessDate, total, success, failed, skipped,
+            "[{}] 발송 요약 businessDate={}: 총 {}건 (SENT={}, FAILED={}, DEAD={}, SKIPPED={})",
+            type, businessDate, total, sent, failed, dead, skipped,
         )
         return stepExecution.exitStatus
     }

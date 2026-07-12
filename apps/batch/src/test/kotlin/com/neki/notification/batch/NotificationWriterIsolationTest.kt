@@ -3,7 +3,7 @@ package com.neki.notification.batch
 import com.neki.notification.application.port.out.NotificationLogStore
 import com.neki.notification.application.port.out.PushSender
 import com.neki.notification.batch.adapter.out.NotificationLogStoreAdapter
-import com.neki.notification.domain.model.FcmResult
+import com.neki.notification.domain.model.NotificationStatus
 import com.neki.notification.domain.model.NotificationLog
 import com.neki.notification.domain.model.NotificationType
 import com.neki.notification.domain.model.RenderedMessage
@@ -45,7 +45,7 @@ class NotificationWriterIsolationTest {
         @Primary
         fun stubPushSender(): PushSender =
             object : PushSender {
-                override fun send(token: String, message: RenderedMessage): FcmResult = FcmResult.SUCCESS
+                override fun send(token: String, message: RenderedMessage): NotificationStatus = NotificationStatus.SENT
             }
 
         /** user=FAIL_USER_ID의 적재만 실패시키는 데코레이터(나머지는 실제 어댑터에 위임). */
@@ -61,8 +61,8 @@ class NotificationWriterIsolationTest {
                     adapter.save(log)
                 }
 
-                override fun countByResult(type: NotificationType, businessDate: LocalDate) =
-                    adapter.countByResult(type, businessDate)
+                override fun countByStatus(type: NotificationType, businessDate: LocalDate) =
+                    adapter.countByStatus(type, businessDate)
             }
     }
 
@@ -85,7 +85,7 @@ class NotificationWriterIsolationTest {
         jdbc.execute("CREATE TABLE IF NOT EXISTS tb_photo_image (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, created_at TIMESTAMP NOT NULL)")
         jdbc.execute("CREATE TABLE IF NOT EXISTS holiday (id BIGSERIAL PRIMARY KEY, holiday_date DATE NOT NULL, name VARCHAR(64) NOT NULL, notify_offset_days INT NOT NULL, CONSTRAINT uq_holiday_date UNIQUE (holiday_date))")
         jdbc.execute(
-            "CREATE TABLE IF NOT EXISTS notification_log (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, notification_type VARCHAR(32) NOT NULL, message_tone VARCHAR(16) NOT NULL, variable_applied BOOLEAN NOT NULL, title VARCHAR(255) NOT NULL, body VARCHAR(500) NOT NULL, business_date DATE NOT NULL, fcm_result VARCHAR(16) NOT NULL, sent_at TIMESTAMP NOT NULL, CONSTRAINT uq_notification_log_user_type_date UNIQUE (user_id, notification_type, business_date))",
+            "CREATE TABLE IF NOT EXISTS notification_log (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, notification_type VARCHAR(32) NOT NULL, message_tone VARCHAR(16) NOT NULL, variable_applied BOOLEAN NOT NULL, title VARCHAR(255) NOT NULL, body VARCHAR(500) NOT NULL, business_date DATE NOT NULL, status VARCHAR(16) NOT NULL, sent_at TIMESTAMP NOT NULL, CONSTRAINT uq_notification_log_user_type_date UNIQUE (user_id, notification_type, business_date))",
         )
         jdbc.execute("TRUNCATE tb_notification, tb_photo_image, holiday, notification_log RESTART IDENTITY")
 

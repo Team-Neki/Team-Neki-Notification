@@ -17,9 +17,10 @@
 ## 2. 소유 테이블 스키마
 
 ### `notification_log`
-`id, user_id, notification_type, message_tone, variable_applied, title, body, business_date, fcm_result, sent_at`
+`id, user_id, notification_type, message_tone, variable_applied, title, body, business_date, status, sent_at`
 - `UNIQUE(user_id, notification_type, business_date)` — 중복 발송 최종 방어선.
 - `INDEX(business_date)`.
+- `status`: 발송 라이프사이클(`SENT`/`FAILED`/`DEAD`/`SKIPPED`, `NotificationStatus`). V1의 `fcm_result`를 V3에서 리네임([ADR 0002](../adr/0002-notification-log-status-single-table.md)).
 
 ### `holiday`
 `id, holiday_date, name, notify_offset_days`

@@ -2,7 +2,7 @@ package com.neki.notification.batch.adapter.`in`.web
 
 import com.neki.notification.application.port.out.PushSender
 import com.neki.notification.batch.application.launch.NotificationJobLauncher
-import com.neki.notification.domain.model.FcmResult
+import com.neki.notification.domain.model.NotificationStatus
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -77,7 +77,7 @@ class TestNotificationControllerTest {
 
     @Test
     fun `단건 푸시는 발송 결과를 반환`() {
-        every { pushSender.send(any(), any()) } returns FcmResult.SUCCESS
+        every { pushSender.send(any(), any()) } returns NotificationStatus.SENT
 
         mockMvc.perform(
             post("/test/notifications/push")
@@ -87,7 +87,7 @@ class TestNotificationControllerTest {
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.token").value("device-token"))
-            .andExpect(jsonPath("$.result").value("SUCCESS"))
+            .andExpect(jsonPath("$.result").value("SENT"))
 
         verify { pushSender.send("device-token", any()) }
     }
