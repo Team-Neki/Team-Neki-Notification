@@ -1,7 +1,7 @@
 package com.neki.notification.batch.adapter.out.fcm
 
 import com.neki.notification.application.port.out.PushSender
-import com.neki.notification.domain.model.FcmResult
+import com.neki.notification.domain.model.NotificationStatus
 import com.neki.notification.domain.model.RenderedMessage
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -19,8 +19,8 @@ class LoggingPushSender : PushSender {
         )
     }
 
-    override fun send(token: String, message: RenderedMessage): FcmResult {
+    override fun send(token: String, message: RenderedMessage): NotificationStatus {
         log.info("[FCM 비활성] 발송 생략 token={} title={}", token, message.title)
-        return FcmResult.SKIPPED
+        return NotificationStatus.SKIPPED
     }
 }

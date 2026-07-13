@@ -11,7 +11,7 @@ data class NotificationLog(
     val title: String,
     val body: String,
     val businessDate: LocalDate,
-    val fcmResult: FcmResult,
+    val status: NotificationStatus,
     val sentAt: Instant? = null,
     val id: Long? = null,
 ) {
@@ -21,7 +21,7 @@ data class NotificationLog(
             type: NotificationType,
             message: RenderedMessage,
             businessDate: LocalDate,
-            fcmResult: FcmResult,
+            status: NotificationStatus,
         ): NotificationLog = NotificationLog(
             userId = target.userId,
             notificationType = type,
@@ -30,7 +30,7 @@ data class NotificationLog(
             title = message.title,
             body = message.body,
             businessDate = businessDate,
-            fcmResult = fcmResult,
+            status = status,
         )
     }
 }

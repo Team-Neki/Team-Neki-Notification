@@ -32,7 +32,7 @@ modules:scheduling/  @EnableScheduling + 운영 타임존 Clock (SchedulingConfi
 
 | 레이어 | 위치 | 책임 |
 | --- | --- | --- |
-| 도메인 모델 | `domain/model` | `NotificationType`, `MessageTone`(선언 순서 유효), `SendTarget`, `RenderedMessage`, `NotificationLog`, `Holiday`, `SendDecision`, `FcmResult` 등 |
+| 도메인 모델 | `domain/model` | `NotificationType`, `MessageTone`(선언 순서 유효), `SendTarget`, `RenderedMessage`, `NotificationLog`, `Holiday`, `SendDecision`, `NotificationStatus` 등 |
 | 도메인 정책 | `domain/policy` | `MessageRenderer`(문구 렌더·폴백), `ToneAssignmentPolicy`(톤 배정) — 순수 함수 |
 | 도메인 서비스 | `domain/service` | `NotificationProcessor.decide()` — 중복 판정 + 렌더 조립 (순수) |
 | 포트(out) | `domain/application/port/out` | 인프라가 구현할 인터페이스 |

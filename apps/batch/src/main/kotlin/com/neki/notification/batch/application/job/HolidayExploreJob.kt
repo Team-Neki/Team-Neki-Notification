@@ -43,7 +43,7 @@ class HolidayExploreJob(
     fun holidayStep(
         holidayItemReader: ItemReader<SendTarget>,
         holidayItemProcessor: ItemProcessor<SendTarget, PreparedNotification>,
-    ): Step = steps.chunkStep(STEP_NAME, holidayItemReader, holidayItemProcessor)
+    ): Step = steps.chunkStep(STEP_NAME, NotificationType.HOLIDAY_EXPLORE, holidayItemReader, holidayItemProcessor)
 
     @Bean(name = [JOB_NAME])
     fun holidayExploreJob(holidayStep: Step): Job = steps.singleStepJob(JOB_NAME, holidayStep)

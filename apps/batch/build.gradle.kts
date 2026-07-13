@@ -60,12 +60,17 @@ jooq {
                 logging = Logging.WARN
                 generator.apply {
                     database.apply {
-                        // 라이브 DB 없이 Flyway V1 DDL 스크립트에서 직접 스키마를 해석한다.
+                        // 라이브 DB 없이 Flyway DDL 스크립트에서 직접 스키마를 해석한다.
                         name = "org.jooq.meta.extensions.ddl.DDLDatabase"
+                        // 소유 테이블(notification_log, holiday)만 codegen 대상. Spring Batch 메타(V2)는 제외한다.
+                        excludes = "BATCH_.*"
                         properties.addAll(
                             listOf(
+                                // DDLDatabase 의 scripts 는 glob 패턴을 받는다(콤마 목록 아님).
+                                // 전체 마이그레이션(V1 생성 + V3 status 리네임)을 semantic 순서로 적용하고,
+                                // 배치 테이블은 위 excludes 로 생성에서 뺀다.
                                 Property().withKey("scripts")
-                                    .withValue("src/main/resources/db/migration/V1__notification_schema.sql"),
+                                    .withValue("src/main/resources/db/migration/*.sql"),
                                 Property().withKey("sort").withValue("semantic"),
                                 Property().withKey("defaultNameCase").withValue("as_is"),
                                 Property().withKey("unqualifiedSchema").withValue("none"),

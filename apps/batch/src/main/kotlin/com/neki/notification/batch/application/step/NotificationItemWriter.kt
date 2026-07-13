@@ -21,7 +21,7 @@ class NotificationItemWriter(
                     type = prepared.type,
                     message = prepared.message,
                     businessDate = prepared.businessDate,
-                    fcmResult = result,
+                    status = result,
                 ),
             )
         }

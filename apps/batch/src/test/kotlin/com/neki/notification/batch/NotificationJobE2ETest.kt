@@ -1,6 +1,6 @@
 package com.neki.notification.batch
 
-import com.neki.notification.domain.model.FcmResult
+import com.neki.notification.domain.model.NotificationStatus
 import com.neki.notification.domain.model.RenderedMessage
 import com.neki.notification.application.port.out.PushSender
 import org.junit.jupiter.api.BeforeEach
@@ -29,7 +29,7 @@ import kotlin.test.assertTrue
  * P6 배치 Job 3종 E2E (Testcontainers PostgreSQL + 실제 Job 기동).
  *
  * 검증: 동의 필터 · 당일 중복(dedup) · 공휴일 발송일 게이팅 · 변수 치환 적재.
- * FCM은 [RecordingPushSender] 스텁(SUCCESS)으로 대체해 발송 호출과 적재 결과를 단언한다.
+ * FCM은 [RecordingPushSender] 스텁(SENT)으로 대체해 발송 호출과 적재 결과를 단언한다.
  */
 @SpringBootTest
 @Testcontainers
@@ -44,9 +44,9 @@ class NotificationJobE2ETest {
 
     class RecordingPushSender : PushSender {
         val sent = mutableListOf<String>()
-        override fun send(token: String, message: RenderedMessage): FcmResult {
+        override fun send(token: String, message: RenderedMessage): NotificationStatus {
             sent.add(token)
-            return FcmResult.SUCCESS
+            return NotificationStatus.SENT
         }
     }
 
@@ -74,7 +74,7 @@ class NotificationJobE2ETest {
         jdbc.execute("CREATE TABLE IF NOT EXISTS tb_photo_image (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, created_at TIMESTAMP NOT NULL, deleted_at TIMESTAMP)")
         jdbc.execute("CREATE TABLE IF NOT EXISTS holiday (id BIGSERIAL PRIMARY KEY, holiday_date DATE NOT NULL, name VARCHAR(64) NOT NULL, notify_offset_days INT NOT NULL, CONSTRAINT uq_holiday_date UNIQUE (holiday_date))")
         jdbc.execute(
-            "CREATE TABLE IF NOT EXISTS notification_log (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, notification_type VARCHAR(32) NOT NULL, message_tone VARCHAR(16) NOT NULL, variable_applied BOOLEAN NOT NULL, title VARCHAR(255) NOT NULL, body VARCHAR(500) NOT NULL, business_date DATE NOT NULL, fcm_result VARCHAR(16) NOT NULL, sent_at TIMESTAMP NOT NULL, CONSTRAINT uq_notification_log_user_type_date UNIQUE (user_id, notification_type, business_date))",
+            "CREATE TABLE IF NOT EXISTS notification_log (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, notification_type VARCHAR(32) NOT NULL, message_tone VARCHAR(16) NOT NULL, variable_applied BOOLEAN NOT NULL, title VARCHAR(255) NOT NULL, body VARCHAR(500) NOT NULL, business_date DATE NOT NULL, status VARCHAR(16) NOT NULL, sent_at TIMESTAMP NOT NULL, CONSTRAINT uq_notification_log_user_type_date UNIQUE (user_id, notification_type, business_date))",
         )
         jdbc.execute("TRUNCATE tb_notification, tb_photo_image, holiday, notification_log RESTART IDENTITY")
 
@@ -111,7 +111,7 @@ class NotificationJobE2ETest {
         assertEquals(4, recordingPushSender.sent.size)
         assertEquals(
             4,
-            jdbc.queryForObject("SELECT count(*) FROM notification_log WHERE fcm_result = 'SUCCESS'", Int::class.java),
+            jdbc.queryForObject("SELECT count(*) FROM notification_log WHERE status = 'SENT'", Int::class.java),
         )
     }
 

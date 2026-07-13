@@ -23,7 +23,8 @@
 | **파일별 근거 주석** 인덱스(왜 이렇게 짰나) | [docs/lld/code-notes.md](docs/lld/code-notes.md) |
 | **배포/운영** 절차, 필수 주입값 | [docs/runbook/deployment.md](docs/runbook/deployment.md) |
 | **기동 실패**(Flyway/공유 DB) 대응 | [docs/runbook/flyway-shared-db-migration-failure.md](docs/runbook/flyway-shared-db-migration-failure.md) |
-| **아키텍처 결정** 배경 | [docs/adr/](docs/adr/) |
+| **발송 상태(status)/재시도/DLQ** 설계 배경 | [docs/adr/0002-notification-log-status-single-table.md](docs/adr/0002-notification-log-status-single-table.md) |
+| **아키텍처 결정** 배경 (전체) | [docs/adr/](docs/adr/) |
 
 ## 디렉토리 규약
 

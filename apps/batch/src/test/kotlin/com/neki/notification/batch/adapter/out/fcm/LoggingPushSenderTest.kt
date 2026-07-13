@@ -1,7 +1,7 @@
 package com.neki.notification.batch.adapter.out.fcm
 
-import com.neki.notification.domain.model.FcmResult
 import com.neki.notification.domain.model.MessageTone
+import com.neki.notification.domain.model.NotificationStatus
 import com.neki.notification.domain.model.RenderedMessage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -17,6 +17,6 @@ class LoggingPushSenderTest {
             "tok",
             RenderedMessage("제목", "본문", MessageTone.FRIENDLY, variableApplied = false),
         )
-        assertEquals(FcmResult.SKIPPED, result)
+        assertEquals(NotificationStatus.SKIPPED, result)
     }
 }
