@@ -13,6 +13,8 @@ jooqPlugin = "9.0"        # nu.studer.jooq (jOOQ 3.19 지원)
 [libraries]
 # Spring (versions managed by Spring BOM via dependency-management plugin)
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc" }
 spring-boot-starter-batch = { module = "org.springframework.boot:spring-boot-starter-batch" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }

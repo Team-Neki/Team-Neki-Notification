@@ -17,6 +17,7 @@ class HolidayExploreTargetReader(
           AND EXISTS (
               SELECT 1 FROM tb_photo_image p
               WHERE p.user_id = n.user_id
+                AND p.deleted_at IS NULL
                 AND p.created_at >= ?
           )
         ${TargetReaderSupport.PAGING_TAIL}

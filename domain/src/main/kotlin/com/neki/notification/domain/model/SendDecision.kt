@@ -7,7 +7,6 @@ sealed interface SendDecision {
 }
 
 enum class SkipReason {
-    NO_CONSENT,
-
+    // 동의 필터는 읽기 쿼리(WHERE push_agreed = true)가 단일 출처로 담당한다.
     ALREADY_SENT,
 }

@@ -2,7 +2,7 @@
 
 코드에 있던 설명·근거 주석을 이 문서로 모았다. 주석이 코드와 함께 stale해지는 것을 막고, 설계 의도를 한 곳에서 보기 위함이다. 각 항목은 `파일:라인 (요소)` anchor로 어느 코드에 적용되는지 가리킨다.
 
-> 주의: 라인 번호는 이 문서 작성 시점 기준이며 코드 변경에 따라 이동할 수 있다. anchor는 라인보다 **요소 이름(클래스·함수)** 을 우선 신뢰하라. 스펙 참조(`batch-design §`, `copy-spec §`, `shared-db §`)는 `docs/superpowers/specs/` 문서를 가리킨다.
+> 주의: 라인 번호는 이 문서 작성 시점 기준이며 코드 변경에 따라 이동할 수 있다. anchor는 라인보다 **요소 이름(클래스·함수)** 을 우선 신뢰하라. 스펙 참조 매핑: `copy-spec §` → `docs/prd/notification-copy-spec.md`, `batch-design §`·`shared-db §` → `docs/superpowers/specs/`(역사적 설계 기록). 현행 구현 기준 문서는 `docs/lld/`·`docs/prd/`이며 CLAUDE.md가 라우팅한다.
 
 ---
 

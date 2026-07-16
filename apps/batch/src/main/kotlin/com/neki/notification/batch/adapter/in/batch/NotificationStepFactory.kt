@@ -59,7 +59,7 @@ class NotificationStepFactory(
         JobBuilder(name, jobRepository).start(step).build()
 
     companion object {
-        const val CHUNK_SIZE = 1 // 건별 트랜잭션 (B-5: docs/code-notes.md 참조)
+        const val CHUNK_SIZE = 1 // 건별 트랜잭션 (B-5: docs/lld/code-notes.md 참조)
         const val PAGE_SIZE = 100
     }
 }

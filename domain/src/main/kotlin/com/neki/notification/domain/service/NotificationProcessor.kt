@@ -14,9 +14,7 @@ object NotificationProcessor {
         type: NotificationType,
         alreadySent: Boolean,
     ): SendDecision {
-        if (!target.pushConsent) {
-            return SendDecision.Skip(SkipReason.NO_CONSENT)
-        }
+        // 동의 필터는 읽기 쿼리(WHERE push_agreed = true)가 담당한다. 여기서는 중복 발송만 판정한다.
         if (alreadySent) {
             return SendDecision.Skip(SkipReason.ALREADY_SENT)
         }

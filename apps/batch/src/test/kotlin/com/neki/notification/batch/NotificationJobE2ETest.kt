@@ -75,7 +75,9 @@ class NotificationJobE2ETest {
         recordingPushSender.sent.clear()
         holidayRepository.clear() // 인메모리 공휴일 격리(테스트 간 스냅샷 누수 방지)
         jdbc.execute("CREATE TABLE IF NOT EXISTS tb_notification (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL UNIQUE, device_token VARCHAR(512) NOT NULL, push_agreed BOOLEAN NOT NULL DEFAULT false)")
-        jdbc.execute("CREATE TABLE IF NOT EXISTS tb_photo_image (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, created_at TIMESTAMP NOT NULL)")
+        // 실제 TB_PHOTO_IMAGE(Server #298)는 soft-delete(deleted_at)를 가진다. 픽스처도 동일하게 모사한다.
+        jdbc.execute("CREATE TABLE IF NOT EXISTS tb_photo_image (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, created_at TIMESTAMP NOT NULL, deleted_at TIMESTAMP)")
+        // 공휴일은 인메모리(InMemoryHolidayRepository)라 holiday 테이블을 만들지 않는다.
         jdbc.execute(
             "CREATE TABLE IF NOT EXISTS notification_log (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, notification_type VARCHAR(32) NOT NULL, message_tone VARCHAR(16) NOT NULL, variable_applied BOOLEAN NOT NULL, title VARCHAR(255) NOT NULL, body VARCHAR(500) NOT NULL, business_date DATE NOT NULL, fcm_result VARCHAR(16) NOT NULL, sent_at TIMESTAMP NOT NULL, CONSTRAINT uq_notification_log_user_type_date UNIQUE (user_id, notification_type, business_date))",
         )
@@ -148,6 +150,20 @@ class NotificationJobE2ETest {
                 Boolean::class.java,
             )!!,
         )
+    }
+
+    @Test
+    fun `weekly - soft-deleted 사진은 업로드 집계에서 제외된다`() {
+        // user1의 7일 전(06-11) 업로드를 soft-delete → user1은 최근 업로드 없음으로 제외, user5만 남는다.
+        jdbc.execute(
+            "UPDATE tb_photo_image SET deleted_at = '2026-06-12 00:00:00' " +
+                "WHERE user_id = 1 AND created_at = '2026-06-11 10:00:00'",
+        )
+
+        val exec = jobLauncher.run(weeklyReminderJob, params())
+
+        assertEquals(BatchStatus.COMPLETED, exec.status)
+        assertEquals(listOf(5L), logUserIds("WEEKLY_REMINDER"))
     }
 
     @Test
