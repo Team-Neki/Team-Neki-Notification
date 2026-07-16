@@ -10,8 +10,8 @@ spring:
       initialize-schema: never
   flyway:
     # 공유 DB에는 외부 소유 테이블(tb_notification, tb_photo_image)이 이미 존재하므로 첫 마이그레이션 시
-    # baseline 처리해 공존한다. Flyway가 앱 테이블(notification_log, holiday)과 Spring Batch 메타스키마를
-    # 소유한다 (initialize-schema=never 와 정합).
+    # baseline 처리해 공존한다. Flyway가 앱 테이블(notification_log)과 Spring Batch 메타스키마를
+    # 소유한다 (initialize-schema=never 와 정합). 공휴일은 인메모리라 테이블 없음.
     baseline-on-migrate: true
 
 # 스케줄링 기술 인프라 타임존 (modules/scheduling: 시계 + @Scheduled cron 공통 기준).
@@ -25,7 +25,7 @@ neki:
   batch:
     # 스케줄러(@Scheduled) 활성화. 운영에서만 true (NotificationJobScheduler).
     scheduling-enabled: false
-    # 기동 시 공휴일 CSV → holiday 테이블 동기화 활성화. 운영에서만 true (HolidaySyncRunner).
+    # 기동 완료 이벤트 시 공휴일 CSV → 인메모리 적재 활성화. 운영에서만 true (HolidayLoader).
     holiday-sync-enabled: false
     # 공휴일 원천 CSV 경로(클래스패스). 추후 Google Sheet로 전환 예정(issue #17).
     holiday-csv: holidays.csv

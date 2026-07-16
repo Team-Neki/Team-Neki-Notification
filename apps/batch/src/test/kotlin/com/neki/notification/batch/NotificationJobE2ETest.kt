@@ -1,8 +1,10 @@
 package com.neki.notification.batch
 
 import com.neki.notification.domain.model.FcmResult
+import com.neki.notification.domain.model.Holiday
 import com.neki.notification.domain.model.RenderedMessage
 import com.neki.notification.application.port.out.PushSender
+import com.neki.notification.batch.adapter.out.InMemoryHolidayRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.batch.core.BatchStatus
@@ -21,6 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -53,6 +56,7 @@ class NotificationJobE2ETest {
     @Autowired private lateinit var jobLauncher: JobLauncher
     @Autowired private lateinit var jdbc: JdbcTemplate
     @Autowired private lateinit var recordingPushSender: RecordingPushSender
+    @Autowired private lateinit var holidayRepository: InMemoryHolidayRepository
 
     @Autowired @Qualifier("weekendExploreJob") private lateinit var weekendExploreJob: Job
     @Autowired @Qualifier("weeklyReminderJob") private lateinit var weeklyReminderJob: Job
@@ -69,13 +73,13 @@ class NotificationJobE2ETest {
     @BeforeEach
     fun setUp() {
         recordingPushSender.sent.clear()
+        holidayRepository.clear() // 인메모리 공휴일 격리(테스트 간 스냅샷 누수 방지)
         jdbc.execute("CREATE TABLE IF NOT EXISTS tb_notification (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL UNIQUE, device_token VARCHAR(512) NOT NULL, push_agreed BOOLEAN NOT NULL DEFAULT false)")
         jdbc.execute("CREATE TABLE IF NOT EXISTS tb_photo_image (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, created_at TIMESTAMP NOT NULL)")
-        jdbc.execute("CREATE TABLE IF NOT EXISTS holiday (id BIGSERIAL PRIMARY KEY, holiday_date DATE NOT NULL, name VARCHAR(64) NOT NULL, notify_offset_days INT NOT NULL, CONSTRAINT uq_holiday_date UNIQUE (holiday_date))")
         jdbc.execute(
             "CREATE TABLE IF NOT EXISTS notification_log (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, notification_type VARCHAR(32) NOT NULL, message_tone VARCHAR(16) NOT NULL, variable_applied BOOLEAN NOT NULL, title VARCHAR(255) NOT NULL, body VARCHAR(500) NOT NULL, business_date DATE NOT NULL, fcm_result VARCHAR(16) NOT NULL, sent_at TIMESTAMP NOT NULL, CONSTRAINT uq_notification_log_user_type_date UNIQUE (user_id, notification_type, business_date))",
         )
-        jdbc.execute("TRUNCATE tb_notification, tb_photo_image, holiday, notification_log RESTART IDENTITY")
+        jdbc.execute("TRUNCATE tb_notification, tb_photo_image, notification_log RESTART IDENTITY")
 
         jdbc.execute(
             """
@@ -158,7 +162,7 @@ class NotificationJobE2ETest {
 
     @Test
     fun `holiday - 발송일이면 최근 1달 업로드 동의자에게 공휴일명 치환 발송`() {
-        jdbc.execute("INSERT INTO holiday(holiday_date, name, notify_offset_days) VALUES ('2026-06-18', '테스트공휴일', 0)")
+        holidayRepository.upsertAll(listOf(Holiday(LocalDate.of(2026, 6, 18), "테스트공휴일", 0)))
 
         val exec = jobLauncher.run(holidayExploreJob, params())
 

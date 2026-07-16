@@ -8,7 +8,7 @@
 
 ## domain — 포트 (application/port/out)
 
-- `domain/.../application/port/out/HolidayCalendar.kt:6` (`interface HolidayCalendar`) — 공휴일 발송일 판정 포트(batch-design §P5). infra가 `holiday` 테이블 조회로 구현한다.
+- `domain/.../application/port/out/HolidayCalendar.kt:6` (`interface HolidayCalendar`) — 공휴일 발송일 판정 포트(batch-design §P5). infra가 인메모리(`InMemoryHolidayRepository`)로 구현한다.
   - `:7` (`holidayToNotifyOn`) — `businessDate`가 어떤 공휴일의 발송일(notifyDate)이면 그 공휴일을, 아니면 null을 반환. HOLIDAY_EXPLORE Job이 매일 깨어나 이 판정으로 발송 여부와 `[공휴일명]`을 결정한다.
 - `domain/.../application/port/out/NotificationLogStore.kt:7` (`interface NotificationLogStore`) — 발송 이력 저장/조회 포트(batch-design §4). infra가 jOOQ로 구현. 이력 조회(중복 판정의 원천)는 포트 책임이고, "이미 발송됨" 불리언을 받은 뒤의 발송 제외 판정은 도메인(NotificationProcessor) 책임(copy-spec §7).
   - `:8` (`alreadySent`) — (userId, type, businessDate) 키로 이미 발송된 이력이 있는지.
@@ -16,7 +16,8 @@
 - `domain/.../application/port/out/PushSender.kt:6` (`fun interface PushSender`) — 푸시 발송 포트(batch-design §4). infra가 Firebase Admin SDK 어댑터로 구현.
   - `:7` (`send`) — 단일 디바이스 토큰으로 메시지 발송. 무효 토큰·전송 실패는 `FcmResult.FAILED`.
 - `domain/.../application/port/out/HolidaySource.kt` (`fun interface HolidaySource`) — 공휴일 **외부 원천** 포트(seed source). 현재 CSV(`CsvHolidaySource`), 추후 Google Sheet로 교체(issue #17). `load()` → `List<Holiday>`. 원천 적재(이 포트)와 도메인 판정 조회(`HolidayCalendar`)는 분리된 관심사다.
-- `domain/.../application/port/out/HolidayStore.kt` (`interface HolidayStore`) — `holiday` 테이블 적재 포트. `upsertAll(holidays)` → holiday_date(unique) 기준 멱등 upsert. infra가 jOOQ로 구현.
+- `domain/.../application/port/out/HolidayStore.kt` (`interface HolidayStore`) — 공휴일 적재 포트. `upsertAll(holidays)` → holiday_date 기준 멱등 병합. infra가 인메모리(`InMemoryHolidayRepository`)로 구현(과거 jOOQ DB 어댑터에서 이관).
+- `domain/.../application/port/out/SendTargetReader.kt` (`fun interface SendTargetReader`) — 발송 대상 조회 포트(batch-design §5 Reader). keyset 페이징의 "바인딩된 페이지 조회자" 형태로 `readPage(afterUserId, pageSize)`만 노출한다. 실행 종속 파라미터(businessDate·공휴일명)는 이 포트에 넣지 않고 **인바운드 어댑터(배치 Job 조립, adapter/in/batch)가 유형별 리더를 이 포트로 바인딩**한다. 그래서 발송(`PushSender`)·적재(`NotificationLogStore`)와 대칭으로 읽기도 포트를 통한다(구체 `read/*` 리더 직결 제거).
 
 ## domain — 모델 (domain/model)
 
@@ -43,7 +44,7 @@
 
 ## 영속성 (jOOQ)
 
-jOOQ 마이그레이션(PR #13~)으로 JPA(Hibernate)·`modules/postgresql` 모듈을 제거하고 영속성을 `apps/batch`로 통합했다(결정·근거: `docs/adr/0001-jooq-over-jpa.md`). 소유 테이블(`notification_log`, `holiday`)은 Flyway V1 DDL에서 jOOQ codegen으로 타입 생성(`com.neki.notification.infra.jooq`, `build/` 하위·미추적), 외부 소유 테이블(`tb_notification`/`tb_photo_image`)은 codegen 없이 plain SQL. 구체 구현은 `apps/batch — adapter/out` 섹션(`NotificationLogStoreAdapter`, `HolidayCalendarAdapter`, `read/*`) 및 `JooqConfig` 참조. 스키마 SSOT는 `apps/batch/src/main/resources/db/migration/V1__notification_schema.sql`.
+jOOQ 마이그레이션(PR #13~)으로 JPA(Hibernate)·`modules/postgresql` 모듈을 제거하고 영속성을 `apps/batch`로 통합했다(결정·근거: `docs/adr/0001-jooq-over-jpa.md`). 소유 테이블(`notification_log`)은 Flyway V1 DDL에서 jOOQ codegen으로 타입 생성(`com.neki.notification.infra.jooq`, `build/` 하위·미추적), 외부 소유 테이블(`tb_notification`/`tb_photo_image`)은 codegen 없이 plain SQL. 공휴일은 V1이 만든 `holiday` 테이블을 `V3__drop_holiday_table.sql`로 제거하고 인메모리(`InMemoryHolidayRepository`)로 이관했다 — 적용된 V1은 불변이라 별도 마이그레이션으로 DROP하고, codegen은 V1만 읽으므로 `excludes="HOLIDAY"`(build.gradle.kts)로 생성 타입에서 뺀다. 구체 구현은 `apps/batch — adapter/out` 섹션(`NotificationLogStoreAdapter`, `InMemoryHolidayRepository`, `read/*`) 및 `JooqConfig` 참조. 스키마 SSOT는 `apps/batch/src/main/resources/db/migration/`(V1 앱 테이블 + V3 holiday drop).
 
 ## modules/fcm — FCM 기술 인프라
 
@@ -57,16 +58,13 @@ jOOQ 마이그레이션(PR #13~)으로 JPA(Hibernate)·`modules/postgresql` 모�
 ## apps/batch — adapter/in (인바운드)
 
 - `apps/batch/.../batch/adapter/in/scheduler/NotificationJobScheduler.kt:17` (`class NotificationJobScheduler`, `@Component :15`) — cron 스케줄 → Job 기동(batch-design §2/§P7). WEEKLY_REMINDER 매일 20:00 / WEEKEND_EXPLORE 금·토·일 / HOLIDAY_EXPLORE 매일 깨워 발송일 판정(공휴일 아니면 Job 내부 0건). `businessDate`는 운영 타임존 기준 오늘, `launchedAt`(ms)로 JobInstance를 매 기동 유일화.
-- `apps/batch/.../batch/adapter/in/HolidaySyncRunner.kt` (`class HolidaySyncRunner`, `ApplicationRunner`) — 기동 시 공휴일 동기화 1회 트리거. `neki.batch.holiday-sync-enabled=true`일 때만 활성(운영 한정, 스케줄러 게이팅과 동일 결). CSV는 배포 아티팩트라 "배포 시 시드"로 충분. Google Sheet(issue #17)로 가면 `@Scheduled` cron으로 전환.
+- `apps/batch/.../batch/adapter/in/HolidayLoader.kt` (`class HolidayLoader`) — 기동 완료 이벤트(`@EventListener(ApplicationReadyEvent)`)에 공휴일 CSV를 인메모리로 적재하는 트리거. `neki.batch.holiday-sync-enabled=true`일 때만 활성(운영 한정, 스케줄러 게이팅과 동일 결). 적재 로직은 `HolidaySyncService.sync()`에 위임. CSV는 배포 아티팩트라 "기동 시 적재"로 충분. Google Sheet(issue #17)로 가면 재적재가 필요해 `@Scheduled` cron으로 전환.
   - `:36` (`launch`) — **중복/동시 기동 방어(C-1)**: `launchedAt` 유일화 때문에 같은 businessDate라도 매번 새 JobInstance가 생성돼 Spring Batch 중복 방지에 기댈 수 없다. 그래서 기동 직전 `JobExplorer.findRunningJobExecutions`로 동일 Job이 실행 중이면 트리거를 건너뛴다(이전 실행이 cron 주기를 넘긴 경우 방어). 이 가드는 **단일 JVM 인스턴스 내에서만** 유효 — 본 배치는 단일 인스턴스(k8s replica=1 등) 운영 전제이며 배포 매니페스트로 강제해야 한다. 다중 인스턴스는 ShedLock 등 분산 락으로 단일 발화를 별도 보장(발송 자체의 중복은 DB unique 제약만으로 못 막음).
 
 ## apps/batch — adapter/out (포트 구현 어댑터)
 
-- `apps/batch/.../batch/adapter/out/HolidayCalendarAdapter.kt:10` (`class HolidayCalendarAdapter`) — `HolidayCalendar`의 **jOOQ** 구현(batch-design §P5). 소유 테이블이라 생성된 타입(`Tables.HOLIDAY`)으로 `selectFrom(...).where(HOLIDAY_DATE.between(...))`. businessDate 주변 ±SCAN_WINDOW일의 공휴일을 후보로 조회한 뒤 `notifyDate(=date+notifyOffsetDays)==businessDate`인 공휴일 선택. 오프셋 계산을 Kotlin에서 처리해 DB 종속 날짜 연산 회피.
+- `apps/batch/.../batch/adapter/out/InMemoryHolidayRepository.kt` (`class InMemoryHolidayRepository`) — `HolidayCalendar`(읽기) + `HolidayStore`(쓰기)를 함께 구현하는 인메모리 저장소(batch-design §P5). 공휴일은 소량·저빈도 변경이라 DB 테이블 대신 프로세스 메모리에 든다. `@Volatile` 불변 스냅샷(`Map<date, Holiday>`)을 통째 교체(copy-on-write)해 적재(HolidayLoader, 단일 이벤트 스레드)와 조회(배치 스레드) 간 가시성을 보장. `upsertAll`=holiday_date 기준 멱등 병합, `holidayToNotifyOn`=스냅샷 전수에서 `notifyDate(=date+notifyOffsetDays)==businessDate` 선택, `clear()`=테스트 격리용. DB 시절 `SCAN_WINDOW`(±3 조회 한계)가 사라져 오프셋이 커도 발송일이 일치하면 매칭되며, `MAX_OFFSET_DAYS(±2)` 초과는 조회를 막지 않고 WARN만 남긴다(데이터 위생).
 - `apps/batch/.../batch/adapter/out/CsvHolidaySource.kt` (`class CsvHolidaySource`) — `HolidaySource`의 CSV 구현. 클래스패스 `holidays.csv`(`neki.batch.holiday-csv`로 경로 주입)에서 `holiday_date,name,notify_offset_days` 파싱. 주석(`#`)·빈 줄·헤더 건너뜀, offset 생략 시 0. 추후 Google Sheet 어댑터로 교체(issue #17).
-- `apps/batch/.../batch/adapter/out/HolidayStoreAdapter.kt` (`class HolidayStoreAdapter`) — `HolidayStore`의 jOOQ 구현. `insertInto(HOLIDAY).onConflict(HOLIDAY_DATE).doUpdate()`로 holiday_date 기준 멱등 upsert.
-  - `MAX_OFFSET_DAYS = 2L` — 허용 notifyOffsetDays 절대값 상한(전날 -1 / 당일 0 + 여유). 시드 데이터 계약.
-  - `SCAN_WINDOW = MAX_OFFSET_DAYS + 1` — 가드(B-6/L-4): 조회 윈도우를 계약보다 1일 넓게 잡아 `|offset|`이 상한을 1 초과한 데이터(±3)도 조용히 누락되지 않고 발송일에 매칭된다. 그런 후보는 WARN으로 로깅해 `MAX_OFFSET_DAYS` 상향/데이터 점검을 유도(SCAN_WINDOW 밖은 여전히 미조회이므로 조기 경고 목적).
 - `apps/batch/.../batch/adapter/out/NotificationLogStoreAdapter.kt:14` (`class NotificationLogStoreAdapter`) — `NotificationLogStore`의 **jOOQ** 구현(batch-design §4 persistence-write). 소유 테이블이라 생성된 타입(`Tables.NOTIFICATION_LOG`)으로 `insertInto`/`fetchExists`. `sentAt`이 비어 있으면 적재 시각 주입(`OffsetDateTime`/UTC). 동일 키 동시 적재는 DB unique 제약이 최종 방어선. `clock`은 기본값 없이 빈 주입 강제(B-4): 스케줄링 모듈이 제공하는 단일 `Clock`(Asia/Seoul) 빈을 일관되게 쓴다.
 - `apps/batch/.../batch/config/JooqConfig.kt` (`class JooqConfig`) — jOOQ 렌더링 설정(jOOQ 마이그레이션). codegen이 DDLDatabase로 식별자를 **대문자**로 생성하므로, 런타임엔 PostgreSQL 소문자 폴딩에 맞춰 `RenderNameCase.LOWER` + `RenderQuotedNames.NEVER`(+`renderSchema=false`)로 렌더한다. 안 그러면 `"NOTIFICATION_LOG"."USER_ID"` 인용 대문자로 나가 실제 소문자 컬럼과 어긋남. `Settings` 빈이 아니라 Spring Boot의 `DefaultConfigurationCustomizer`로 적용(전자는 자동구성에 안 먹힘).
 - `apps/batch/.../batch/adapter/out/fcm/FcmPushSender.kt:15` (`class FcmPushSender`) — `PushSender`의 Firebase Admin SDK 구현(batch-design §4). `neki.fcm.enabled=true`일 때만 활성(미설정/로컬은 LoggingPushSender가 대체). 토큰 단위 전송 실패는 배치를 중단시키지 않도록 `FcmResult.FAILED`로 흡수. `init` 로그(H-1): 실제 발송 모드임을 기동 로그로 명시해 LoggingPushSender(무발송)와 운영 상태를 구분.
@@ -79,25 +77,23 @@ jOOQ 마이그레이션(PR #13~)으로 JPA(Hibernate)·`modules/postgresql` 모�
 
 ## apps/batch — application (유스케이스)
 
-- `apps/batch/.../batch/application/HolidaySyncService.kt` (`class HolidaySyncService`) — 공휴일 원천(`HolidaySource`) → `holiday` 테이블(`HolidayStore`) 동기화 유스케이스. 원천이 CSV든 Sheet든 서비스는 불변 — 어댑터만 교체(헥사고날). `sync()`는 upsert 건수 반환.
+- `apps/batch/.../batch/application/HolidaySyncService.kt` (`class HolidaySyncService`) — 공휴일 원천(`HolidaySource`) → 인메모리 저장소(`HolidayStore`) 적재 유스케이스. 원천이 CSV든 Sheet든, 저장소가 DB든 인메모리든 서비스는 불변 — 어댑터만 교체(헥사고날). `sync()`는 적재 건수 반환.
+- `apps/batch/.../batch/application/NotificationSendService.kt` (`class NotificationSendService`) — 알림 **1건 처리** 유스케이스(batch-design §5). Spring Batch와 무관하게 "1건을 어떻게 준비/발송하는가"만 담당한다. `prepare(target, type, businessDate)` = 당일 중복 조회(`NotificationLogStore.alreadySent`) + 도메인 판정(`NotificationProcessor.decide`) → `PreparedNotification?`(Skip이면 null). `dispatch(prepared)` = `PushSender.send` 후 결과로 `NotificationLogStore.save`. "여러 건을 어떤 단위로 읽고 커밋하는가"(페이징·청크·**트랜잭션 경계**)는 이 서비스가 아니라 배치 어댑터(adapter/in/batch, `CHUNK_SIZE=1`)의 책임이므로, `dispatch`의 send-then-save dual-write 롤백 위험(B-5/M-3)은 호출자 청크가 1건으로 한정한다. 배치 외 트리거(예: 어드민 단건 발송)에서도 재사용 가능.
 
-## apps/batch — application/job (유스케이스 조립)
+## apps/batch — adapter/in/batch (배치 구동 어댑터)
 
-- `apps/batch/.../batch/application/job/NotificationStepFactory.kt:23` (`class NotificationStepFactory`, `@Component :22`) — 알림 배치 Job 3종의 공통 골격 조립(batch-design §5). 세 Job(WEEKEND/WEEKLY/HOLIDAY)은 Reader → Processor → Writer 청크 구조가 동일하고 Reader 쿼리와 `NotificationType`만 다르다. 동일한 청크/Job 조립 보일러플레이트를 한 곳에 모아 타입별 `~Job` 클래스는 자기 Reader·타입만 선언하게 한다(OCP: 타입 추가 = 클래스 추가). Writer는 무상태 싱글턴이라 팩토리가 직접 보유.
-  - `:31 pagingReader` — keyset 페이징 Reader. `fetch`는 (afterUserId, pageSize) → 페이지.
-  - `:34 processor` — 당일 중복 판정 + 도메인 발송 판정 Processor.
-  - `:37 chunkStep` — Reader → Processor → (공통)Writer 청크 Step.
-  - `:49 singleStepJob` — 단일 Step Job.
-  - `CHUNK_SIZE = 1` (B-5/M-3) — 발송(FCM, 비트랜잭션 외부 부수효과)과 이력 적재(트랜잭션)를 **건별로 커밋**한다. 청크>1이면 한 건의 `save()` 실패가 같은 청크의 이미 발송된 다른 건들의 적재까지 롤백시켜, 재실행 시 그만큼 중복 발송된다(Processor의 `alreadySent`가 커밋된 이력만 보기 때문). 청크=1은 그 블라스트 반경을 "실패한 그 1건"으로 한정한다. 잔여 윈도우: 그 1건은 발송 후 `save()`가 실패하면 재실행 시 1회 중복 가능(단일 인스턴스·`FcmPushSender`가 예외를 흡수해 청크 중단은 `save()` 실패에 한정되므로 드묾). 완전 at-most-once가 필요해지면(예: 다중 인스턴스화) 발송 전 별도 트랜잭션 멱등 클레임(unique 제약 선점) 패턴으로 강화. `PAGE_SIZE = 100`은 DB 조회 효율을 위해 유지(조회 단위 ≠ 커밋 단위).
-- `apps/batch/.../batch/application/job/WeekendExploreJob.kt:18` (`class WeekendExploreJob`, `@Configuration("weekendExploreJobConfig") :17`) — WEEKEND_EXPLORE Job(batch-design §5): 동의자 전원에게 주말 탐방 알림. 대상 = `push_agreed=true` 전원, 변수 없음. 골격 조립은 NotificationStepFactory에 위임.
-- `apps/batch/.../batch/application/job/WeeklyReminderJob.kt:18` (`class WeeklyReminderJob`, `@Configuration("weeklyReminderJobConfig") :17`) — WEEKLY_REMINDER Job(batch-design §5): 7일 전 업로드 동의자에게 주간 리마인드. Reader가 `businessDate`(JobParameter)를 받아 7일 전 업로드 이력을 조회하고 `[최근 업로드 요일]`을 채운다. 골격 조립은 NotificationStepFactory에 위임.
-- `apps/batch/.../batch/application/job/HolidayExploreJob.kt:19` (`class HolidayExploreJob`, `@Configuration("holidayExploreJobConfig") :18`) — HOLIDAY_EXPLORE Job(batch-design §P5): 공휴일 발송일에 최근 1달 업로드 동의자에게 알림. 매일 깨어나 `HolidayCalendar`로 발송일 여부를 판정. 발송일이 아니면 빈 Reader로 0건 처리, 발송일이면 `[공휴일명]`을 채워 발송. 골격 조립은 NotificationStepFactory에 위임.
-  - `:26 holidayItemReader` — 발송일이 아니면(공휴일 매칭 없음) 아무 것도 읽지 않는다(빈 Reader 반환).
+Spring Batch(구동/딜리버리 메커니즘)에 결합된 인바운드 어댑터. Job 조립·청크·**트랜잭션 경계**만 여기 있고, "1건을 어떻게 처리하나"의 실질 로직은 `application/NotificationSendService`로 위임한다. (구 `application/job`·`application/step`에서 이관 — 프레임워크 코드가 application 계층에 있던 것을 바로잡음.) 청크 스텝 기계(Factory + Reader/Processor/Writer)는 항상 함께 쓰여 `NotificationStepFactory.kt` 한 파일에 모았고, 세 컴포넌트는 팩토리만 생성하는 구현 세부라 `private`이다.
 
-## apps/batch — application/step (배치 스텝 컴포넌트)
-
-- `apps/batch/.../batch/application/step/NotificationItemProcessor.kt:12` (`class NotificationItemProcessor`) — 발송 대상 → 발송 확정 변환(batch-design §5 Processor). 당일 중복 여부를 `logStore`로 조회한 뒤 `NotificationProcessor`로 판정. Skip(미동의/중복)이면 null 반환해 청크에서 필터.
-- `apps/batch/.../batch/application/step/NotificationItemWriter.kt:10` (`class NotificationItemWriter`) — 발송 + 이력 적재(batch-design §5 Composite Writer). 각 건을 FCM 발송하고 그 결과(SUCCESS/FAILED/SKIPPED)로 NotificationLog를 적재. 동일 키 동시 적재는 DB unique 제약이 최종 방어선. send-then-save는 외부 부수효과 후 트랜잭션 적재라 본질적으로 dual-write이며, 롤백 시 중복 발송 위험은 `CHUNK_SIZE = 1`(건별 커밋, NotificationStepFactory 참조)로 1건으로 한정한다(B-5/M-3).
-- `apps/batch/.../batch/application/step/PagingSendTargetItemReader.kt:6` (`class PagingSendTargetItemReader`) — keyset 페이징 `ItemReader`(batch-design §5 Reader). `user_id` 오름차순으로 페이지를 당겨 1건씩 흘려보낸다. 빈 페이지를 만나면 소진으로 보고 종료. 단일 인스턴스·단일 스레드 Step 전제(분산 락 불필요, batch-design §3).
+- `apps/batch/.../batch/adapter/in/batch/NotificationStepFactory.kt:29` (`class NotificationStepFactory`, `@Component :28`) — 알림 배치 Job 3종의 공통 골격 조립(batch-design §5). 세 Job(WEEKEND/WEEKLY/HOLIDAY)은 Reader → Processor → Writer 청크 구조가 동일하고 Reader 쿼리와 `NotificationType`만 다르다. 동일한 청크/Job 조립 보일러플레이트를 한 곳에 모아 타입별 `~Job` 클래스는 자기 Reader·타입만 선언하게 한다(OCP: 타입 추가 = 클래스 추가). 실질 로직은 `NotificationSendService`(생성자 주입)에 위임 — 팩토리는 청크 경계·트랜잭션·배선만 담당. Writer는 무상태 싱글턴이라 팩토리가 직접 보유.
+  - `pagingReader(reader: SendTargetReader)` — `SendTargetReader` 포트를 소비하는 keyset 페이징 Reader 생성. Job이 유형별 리더를 SAM 람다로 바인딩해 넘긴다.
+  - `processor(type, businessDate)` — `NotificationSendService.prepare`에 위임하는 Processor 생성.
+  - `chunkStep` — Reader → Processor → (공통)Writer 청크 Step.
+  - `singleStepJob` — 단일 Step Job.
+  - 동거 `private` 컴포넌트(같은 파일, 팩토리 전용): `PagingSendTargetItemReader`(`SendTargetReader` 포트에서 `user_id` 오름차순 keyset 페이징, 빈 페이지=소진, 단일 인스턴스·단일 스레드 전제), `NotificationItemProcessor`(`NotificationSendService.prepare`에 위임, Skip이면 null로 청크 필터), `NotificationItemWriter`(청크의 각 건을 `NotificationSendService.dispatch`로 흘려보냄).
+  - `CHUNK_SIZE = 1` (B-5/M-3) — 발송(FCM, 비트랜잭션 외부 부수효과)과 이력 적재(트랜잭션)를 **건별로 커밋**한다. 청크>1이면 한 건의 `save()` 실패가 같은 청크의 이미 발송된 다른 건들의 적재까지 롤백시켜, 재실행 시 그만큼 중복 발송된다(`prepare`의 `alreadySent`가 커밋된 이력만 보기 때문). 청크=1은 그 블라스트 반경을 "실패한 그 1건"으로 한정한다. 잔여 윈도우: 그 1건은 발송 후 `save()`가 실패하면 재실행 시 1회 중복 가능(단일 인스턴스·`FcmPushSender`가 예외를 흡수해 청크 중단은 `save()` 실패에 한정되므로 드묾). 완전 at-most-once가 필요해지면(예: 다중 인스턴스화) 발송 전 별도 트랜잭션 멱등 클레임(unique 제약 선점) 패턴으로 강화. `PAGE_SIZE = 100`은 DB 조회 효율을 위해 유지(조회 단위 ≠ 커밋 단위).
+- `apps/batch/.../batch/adapter/in/batch/WeekendExploreJob.kt:18` (`class WeekendExploreJob`, `@Configuration("weekendExploreJobConfig") :17`) — WEEKEND_EXPLORE Job(batch-design §5): 동의자 전원에게 주말 탐방 알림. 대상 = `push_agreed=true` 전원, 변수 없음. `WeekendExploreTargetReader`를 `SendTargetReader`로 바인딩. 골격 조립은 NotificationStepFactory에 위임.
+- `apps/batch/.../batch/adapter/in/batch/WeeklyReminderJob.kt:18` (`class WeeklyReminderJob`, `@Configuration("weeklyReminderJobConfig") :17`) — WEEKLY_REMINDER Job(batch-design §5): 7일 전 업로드 동의자에게 주간 리마인드. Reader가 `businessDate`(JobParameter)를 받아 7일 전 업로드 이력을 조회하고 `[최근 업로드 요일]`을 채운다. 골격 조립은 NotificationStepFactory에 위임.
+- `apps/batch/.../batch/adapter/in/batch/HolidayExploreJob.kt:19` (`class HolidayExploreJob`, `@Configuration("holidayExploreJobConfig") :18`) — HOLIDAY_EXPLORE Job(batch-design §P5): 공휴일 발송일에 최근 1달 업로드 동의자에게 알림. 매일 깨어나 `HolidayCalendar`로 발송일 여부를 판정. 발송일이 아니면 빈 Reader로 0건 처리, 발송일이면 `[공휴일명]`을 채워 발송. 골격 조립은 NotificationStepFactory에 위임.
+  - `holidayItemReader` — 발송일이 아니면(공휴일 매칭 없음) 아무 것도 읽지 않는다(빈 `SendTargetReader` 반환).
 
 > B-3(컴포넌트 스캔 이중화 ArchUnit 가드)는 jOOQ 마이그레이션으로 JPA 스캔(`@EntityScan`/`@EnableJpaRepositories`)이 사라져 더 이상 해당 사항이 없으므로 제거됨.

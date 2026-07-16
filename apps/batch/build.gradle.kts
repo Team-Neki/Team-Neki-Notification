@@ -50,6 +50,9 @@ jooq {
                     database.apply {
                         // 라이브 DB 없이 Flyway V1 DDL 스크립트에서 직접 스키마를 해석한다.
                         name = "org.jooq.meta.extensions.ddl.DDLDatabase"
+                        // holiday는 V1이 만들지만 V3(DROP)로 제거되어 인메모리로 이관됨 → 생성 타입에서 제외
+                        // (codegen은 V1만 읽으므로 excludes로 런타임 스키마와 일치시킨다).
+                        excludes = "HOLIDAY"
                         properties.addAll(
                             listOf(
                                 Property().withKey("scripts")

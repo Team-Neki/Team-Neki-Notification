@@ -80,11 +80,10 @@ class NotificationWriterIsolationTest {
     fun setUp() {
         jdbc.execute("CREATE TABLE IF NOT EXISTS tb_notification (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL UNIQUE, device_token VARCHAR(512) NOT NULL, push_agreed BOOLEAN NOT NULL DEFAULT false)")
         jdbc.execute("CREATE TABLE IF NOT EXISTS tb_photo_image (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, created_at TIMESTAMP NOT NULL)")
-        jdbc.execute("CREATE TABLE IF NOT EXISTS holiday (id BIGSERIAL PRIMARY KEY, holiday_date DATE NOT NULL, name VARCHAR(64) NOT NULL, notify_offset_days INT NOT NULL, CONSTRAINT uq_holiday_date UNIQUE (holiday_date))")
         jdbc.execute(
             "CREATE TABLE IF NOT EXISTS notification_log (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, notification_type VARCHAR(32) NOT NULL, message_tone VARCHAR(16) NOT NULL, variable_applied BOOLEAN NOT NULL, title VARCHAR(255) NOT NULL, body VARCHAR(500) NOT NULL, business_date DATE NOT NULL, fcm_result VARCHAR(16) NOT NULL, sent_at TIMESTAMP NOT NULL, CONSTRAINT uq_notification_log_user_type_date UNIQUE (user_id, notification_type, business_date))",
         )
-        jdbc.execute("TRUNCATE tb_notification, tb_photo_image, holiday, notification_log RESTART IDENTITY")
+        jdbc.execute("TRUNCATE tb_notification, tb_photo_image, notification_log RESTART IDENTITY")
 
         // keyset 순서: user 1, 3, 4, 5 (user2 미동의 제외). user4 적재에서 실패하도록 구성.
         jdbc.execute(

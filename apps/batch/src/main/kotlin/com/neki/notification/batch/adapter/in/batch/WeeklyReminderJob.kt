@@ -1,4 +1,4 @@
-package com.neki.notification.batch.application.job
+package com.neki.notification.batch.adapter.`in`.batch
 
 import com.neki.notification.batch.adapter.out.read.WeeklyReminderTargetReader
 import com.neki.notification.domain.model.NotificationType

@@ -6,8 +6,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 /**
- * 공휴일 원천(`HolidaySource`) → `holiday` 테이블 동기화 유스케이스.
- * 원천이 CSV든 Google Sheet(issue #17)든 이 서비스는 그대로 — 어댑터만 교체.
+ * 공휴일 원천(`HolidaySource`) → 인메모리 저장소(`HolidayStore`, InMemoryHolidayRepository) 적재 유스케이스.
+ * 원천이 CSV든 Google Sheet(issue #17)든, 저장소가 DB든 인메모리든 이 서비스는 그대로 — 어댑터만 교체.
  */
 @Component
 class HolidaySyncService(
