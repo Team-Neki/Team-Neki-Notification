@@ -24,10 +24,10 @@
 | 트리거 | 활성 조건 | 용도 |
 | --- | --- | --- |
 | `NotificationJobScheduler` | `neki.batch.scheduling-enabled=true` | cron 정기 발송 |
-| `HolidaySyncRunner` (`ApplicationRunner`) | `neki.batch.holiday-sync-enabled=true` | 기동 시 공휴일 CSV→`holiday` 시드 1회 |
-| `TestNotificationController` | **항상 노출(가드 없음)** | 수동 잡 기동/단건 푸시 스모크 |
+| `HolidayLoader` (`@EventListener(ApplicationReadyEvent)`) | `neki.batch.holiday-sync-enabled=true` | 기동 완료 시 공휴일 CSV→인메모리 적재 1회 |
+| `TestNotificationController` | `neki.test-api.enabled=true` | 수동 잡 기동/단건 푸시 스모크 (pod 내부 전용) |
 
-> ⚠️ `TestNotificationController`(`POST /test/notifications/jobs/{jobName}`, `POST /test/notifications/push`)는 프로파일 가드가 없어 **운영에서도 호출 시 실제 배치·FCM 발송**이 일어난다(prod는 `fcm.enabled=true`). 잡 트리거는 `jobLauncher` 동기 실행이라 종료까지 응답이 블로킹된다. 단건 push는 `notification_log`에 기록하지 않는다.
+> 주의: `TestNotificationController`(`POST /test/notifications/jobs/{jobName}`, `POST /test/notifications/push`)는 인증 없는 **pod 내부 전용** API다. `neki.test-api.enabled=true`인 pod에서만 빈이 등록되며 k8s Service/Ingress로 외부 노출 금지. 호출 시 실제 배치·FCM 발송이 일어난다(prod는 `fcm.enabled=true`). 잡 트리거는 `jobLauncher` 동기 실행이라 종료까지 응답이 블로킹된다. 단건 push는 `notification_log`에 기록하지 않는다.
 
 ## 4. 기능 플래그 (`@ConditionalOnProperty`)
 
@@ -37,8 +37,9 @@
 | --- | --- | --- | --- |
 | `neki.fcm.enabled` | `false` | `true` | `true`=`FcmPushSender`(실발송), `false`=`LoggingPushSender`(로그만, `SKIPPED`) |
 | `neki.batch.scheduling-enabled` | `false` | `true` | `@Scheduled` 스케줄러 동작 여부 |
-| `neki.batch.holiday-sync-enabled` | `false` | `true` | 기동 시 공휴일 CSV 시드 여부 |
+| `neki.batch.holiday-sync-enabled` | `false` | `true` | 기동 완료 시 공휴일 CSV **인메모리 적재** 여부 |
 | `neki.batch.holiday-csv` | `holidays.csv` | (동일) | 공휴일 원천 CSV 클래스패스 경로 |
+| `neki.test-api.enabled` | `false` | (미설정 → `false`) | 수동 트리거 테스트 API(`TestNotificationController`) 빈 등록 여부. pod 내부 전용 — 필요 시 prod에서 명시적 `true` |
 
 ## 5. 프로파일 / 필수 외부 설정
 

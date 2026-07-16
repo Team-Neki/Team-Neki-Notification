@@ -6,9 +6,11 @@
 
 | 구분 | 테이블 | 관리 |
 | --- | --- | --- |
-| **앱 소유** | `notification_log`, `holiday` | Flyway V1 마이그레이션 + jOOQ **codegen 대상**(생성 타입으로 타입세이프 쿼리) |
+| **앱 소유** | `notification_log` | Flyway V1 마이그레이션 + jOOQ **codegen 대상**(생성 타입으로 타입세이프 쿼리) |
 | **Spring Batch 메타** | `BATCH_*` | Flyway V2 마이그레이션 |
-| **외부 소유(read-only)** | `tb_notification`, `tb_photo_image` | 스키마 관리·codegen **안 함**. jOOQ **plain SQL**로 조회 |
+| **외부 소유(read-only)** | `tb_notification`, `tb_photo_image` | 스키마 관리·codegen **안 함**. jOOQ **DSL**(이름 기반 `DSL.table`/`DSL.field`)로 조회 |
+
+> 공휴일은 V1이 만든 `holiday` 테이블을 V3(`V3__drop_holiday_table.sql`)로 제거하고 인메모리(`InMemoryHolidayRepository`)로 이관했다. codegen은 V1만 읽으므로 `excludes="HOLIDAY"`로 생성 타입에서 뺀다. 상세는 [holiday-sync.md](holiday-sync.md).
 
 - 스키마 SSOT: `apps/batch/src/main/resources/db/migration/V1__notification_schema.sql`, `V2__spring_batch_schema.sql`.
 - codegen: 라이브 DB 없이 Flyway V1 DDL에서 `DDLDatabase`로 생성 → `com.neki.notification.infra.jooq`(`build/` 하위, 미추적).
@@ -21,32 +23,27 @@
 - `UNIQUE(user_id, notification_type, business_date)` — 중복 발송 최종 방어선.
 - `INDEX(business_date)`.
 
-### `holiday`
-`id, holiday_date, name, notify_offset_days`
-- `UNIQUE(holiday_date)` — 멱등 upsert 기준.
-- `notify_offset_days`: 발송 오프셋(전날=-1, 당일=0). 발송일 = `holiday_date + notify_offset_days`.
+(공휴일은 인메모리로 이관되어 소유 테이블이 없다 — [holiday-sync.md](holiday-sync.md) 참조.)
 
 ## 3. 어댑터
 
 | 어댑터 | 포트 | 방식 | 비고 |
 | --- | --- | --- | --- |
 | `NotificationLogStoreAdapter` | `NotificationLogStore` | jOOQ 생성 타입 | `insertInto`/`fetchExists`. `sentAt` 없으면 적재 시각 주입(UTC). `clock` 빈 주입 강제. |
-| `HolidayCalendarAdapter` | `HolidayCalendar` | jOOQ 생성 타입 | businessDate ±SCAN_WINDOW 후보 조회 → `notifyDate==businessDate` 선택 |
-| `HolidayStoreAdapter` | `HolidayStore` | jOOQ 생성 타입 | `onConflict(HOLIDAY_DATE).doUpdate()` 멱등 upsert |
-| `WeeklyReminderTargetReader` | (Reader) | plain SQL | 7일 전 업로드 EXISTS + `[최근 업로드 요일]` |
-| `WeekendExploreTargetReader` | (Reader) | plain SQL | `push_agreed=true` 전원 |
-| `HolidayExploreTargetReader` | (Reader) | plain SQL | 최근 1달 업로드 EXISTS + `[공휴일명]` |
+| `InMemoryHolidayRepository` | `HolidayCalendar`+`HolidayStore` | 인메모리 | `@Volatile` 스냅샷, `holiday_date` 멱등 병합 → [holiday-sync.md](holiday-sync.md) |
+| `WeeklyReminderTargetReader` | (Reader) | jOOQ DSL | 7일 전 업로드 EXISTS + `[최근 업로드 요일]`, soft-delete 제외 |
+| `WeekendExploreTargetReader` | (Reader) | jOOQ DSL | 동의자 전원 |
+| `HolidayExploreTargetReader` | (Reader) | jOOQ DSL | 최근 1달 업로드 EXISTS + `[공휴일명]`, soft-delete 제외 |
 
-공통 페이징 골격은 `TargetReaderSupport`:
-- `PAGING_PREDICATE = "n.push_agreed = true AND n.user_id > ?"` — **동의 필터의 단일 출처** + keyset 커서.
-- `PAGING_TAIL = "ORDER BY n.user_id LIMIT ?"`.
-- `sendTarget(record, variables)` — `Record` → `SendTarget` 매퍼.
+공통 골격은 `TargetReaderSupport.query(dsl, after, size, extraColumns, extraCondition)`:
+- 푸시 동의(`push_agreed=true`)·keyset 커서(`user_id > ?`)·정렬·LIMIT를 **강제** → 각 리더는 고유 SELECT 컬럼·WHERE 조건만 얹는다. **동의 필터의 단일 출처**를 구조적으로 보장(리더가 못 빠뜨림).
+- 외부 테이블은 codegen 대상이 아니라 jOOQ 이름 기반 참조(`DSL.table`/`DSL.field`). `sendTarget(record, variables)`가 `Record`→`SendTarget` 매핑.
 
 ## 4. 렌더 케이스 (`JooqConfig`) — 함정 주의
 
 codegen(`DDLDatabase`)이 식별자를 **대문자**로 생성한다. PostgreSQL은 인용 없는 식별자를 **소문자로 폴딩**하므로, 런타임에 그대로 렌더하면 `"NOTIFICATION_LOG"."USER_ID"`(인용 대문자)로 나가 실제 소문자 컬럼과 어긋난다.
 
-→ `RenderNameCase.LOWER` + `RenderQuotedNames.NEVER`(+`renderSchema=false`)로 렌더. `Settings` 빈이 아니라 Spring Boot의 `DefaultConfigurationCustomizer`로 적용(전자는 자동구성에 안 먹힘). plain SQL은 verbatim 전달이라 이 설정 영향을 받지 않는다.
+→ `RenderNameCase.LOWER` + `RenderQuotedNames.NEVER`(+`renderSchema=false`)로 렌더. `Settings` 빈이 아니라 Spring Boot의 `DefaultConfigurationCustomizer`로 적용(전자는 자동구성에 안 먹힘). 외부 테이블 리더도 jOOQ DSL로 조립하므로(이름 기반 참조) 동일 렌더 설정을 탄다.
 
 ## 5. Flyway 공유 DB history 분리
 
@@ -63,7 +60,7 @@ spring.flyway:
 
 ## 6. 외부 스키마 의존성 (k8s 밖 — 백엔드 책임)
 
-리더는 StepScope plain SQL이라 **부팅 시점엔 검증되지 않는다**. 스키마 불일치는 기동이 아니라 **cron 잡 첫 실행에서 SQL 에러**로 드러난다.
+리더는 jOOQ DSL이지만 외부 테이블은 codegen 대상이 아니라(이름 기반 참조) **부팅 시점엔 검증되지 않는다**. 스키마 불일치는 기동이 아니라 **cron 잡 첫 실행에서 SQL 에러**로 드러난다.
 
 | 테이블 · 컬럼 | 사용 잡 |
 | --- | --- |

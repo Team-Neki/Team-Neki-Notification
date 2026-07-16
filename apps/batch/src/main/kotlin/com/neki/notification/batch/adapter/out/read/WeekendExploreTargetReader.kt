@@ -8,13 +8,7 @@ import org.springframework.stereotype.Component
 class WeekendExploreTargetReader(
     private val dsl: DSLContext,
 ) {
-    private val sql = """
-        SELECT n.user_id, n.device_token
-        FROM tb_notification n
-        WHERE ${TargetReaderSupport.PAGING_PREDICATE}
-        ${TargetReaderSupport.PAGING_TAIL}
-    """.trimIndent()
-
     fun readPage(afterUserId: Long, pageSize: Int): List<SendTarget> =
-        dsl.fetch(sql, afterUserId, pageSize).map { TargetReaderSupport.sendTarget(it) }
+        TargetReaderSupport.query(dsl, afterUserId, pageSize)
+            .map { TargetReaderSupport.sendTarget(it) }
 }

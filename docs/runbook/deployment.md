@@ -62,4 +62,4 @@ curl -X POST "http://<host>/test/notifications/jobs/weekendExploreJob"
 | --- | --- | --- |
 | `CrashLoopBackOff` + `checksum mismatch` / `Found non-empty schema` | Flyway history 공유 충돌 | [flyway-shared-db-migration-failure.md](flyway-shared-db-migration-failure.md) |
 | `Failed to configure a DataSource` / `driver class` | datasource 미설정 / `JASYPT_PASSWORD` 누락 | 위 문서 §5 |
-| 기동은 되는데 cron 첫 실행에서 SQL 에러 | 외부 스키마 불일치(리더 plain SQL은 부팅 시 미검증) | `docs/lld/data-access.md §6` |
+| 기동은 되는데 cron 첫 실행에서 SQL 에러 | 외부 스키마 불일치(리더 jOOQ DSL이나 외부 테이블은 부팅 시 미검증) | `docs/lld/data-access.md §6` |

@@ -1,6 +1,6 @@
 package com.neki.notification.batch.adapter.`in`.scheduler
 
-import com.neki.notification.batch.application.launch.NotificationJobLauncher
+import com.neki.notification.batch.adapter.`in`.NotificationJobLauncher
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

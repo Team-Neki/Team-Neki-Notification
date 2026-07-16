@@ -48,6 +48,10 @@ neki:
   fcm:
     # 발송 활성화 시 true + credentials-location 지정 (FirebaseConfig).
     enabled: false
+  test-api:
+    # 수동 트리거 테스트 API(TestNotificationController). true인 pod에서만 빈 등록.
+    # 주의: 인증 없는 pod 내부 전용 — k8s Service/Ingress로 외부 노출 금지.
+    enabled: false
   batch:
     # 스케줄러(@Scheduled) 활성화. 운영에서만 true (NotificationJobScheduler).
     scheduling-enabled: false

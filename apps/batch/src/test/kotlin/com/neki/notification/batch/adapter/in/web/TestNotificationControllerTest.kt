@@ -1,7 +1,7 @@
 package com.neki.notification.batch.adapter.`in`.web
 
 import com.neki.notification.application.port.out.PushSender
-import com.neki.notification.batch.application.launch.NotificationJobLauncher
+import com.neki.notification.batch.adapter.`in`.NotificationJobLauncher
 import com.neki.notification.domain.model.FcmResult
 import io.mockk.every
 import io.mockk.mockk

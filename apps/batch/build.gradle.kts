@@ -42,6 +42,7 @@ dependencies {
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.mockk)
+    testImplementation(libs.archunit.junit5)
 }
 
 // 배포는 bootJar(레이어드 실행 가능 jar)만 사용한다. plain jar를 비활성화해

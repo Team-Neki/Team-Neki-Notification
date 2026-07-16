@@ -40,7 +40,7 @@
 ## 4. 수신 동의 정책 (Consent) — ⚠️ 구현 현실
 
 > **현행 구현의 단일 동의 출처는 `tb_notification.push_agreed = true` 컬럼이다.**
-> 모든 TargetReader가 공통 술어 `n.push_agreed = true`로 동의를 필터링하며(`TargetReaderSupport.PAGING_PREDICATE`), 동의 판정은 **읽기 쿼리에서 한 번만** 이뤄진다. 도메인 `NotificationProcessor`는 동의를 재확인하지 않고 중복 발송만 판정한다.
+> 모든 TargetReader가 공통 술어 `push_agreed = true`로 동의를 필터링하며(`TargetReaderSupport.query`가 동의·keyset·정렬·LIMIT를 강제 → 리더가 못 빠뜨림), 동의 판정은 **읽기 쿼리에서 한 번만** 이뤄진다. 도메인 `NotificationProcessor`는 동의를 재확인하지 않고 중복 발송만 판정한다.
 
 역사적 설계(`docs/superpowers/specs/2026-06-10-shared-db-data-source-and-dependencies.md`)는 `TB_USER_TERM_AGREEMENT.withdrawn_at IS NULL`(마케팅 약관 동의) 기반 판정을 계획했으나, **현재 코드는 그 조인을 사용하지 않고** `tb_notification.push_agreed`로 단순화되어 있다. 약관 기반 동의로 전환하려면 리더 쿼리 변경이 필요하며, 그때 이 문서와 스키마 의존성을 함께 갱신한다.
 

@@ -1,4 +1,4 @@
-package com.neki.notification.batch.application.launch
+package com.neki.notification.batch.adapter.`in`
 
 import io.mockk.every
 import io.mockk.mockk

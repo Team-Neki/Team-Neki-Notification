@@ -1,10 +1,11 @@
 package com.neki.notification.batch.adapter.`in`.web
 
 import com.neki.notification.application.port.out.PushSender
-import com.neki.notification.batch.application.launch.NotificationJobLauncher
+import com.neki.notification.batch.adapter.`in`.NotificationJobLauncher
 import com.neki.notification.domain.model.FcmResult
 import com.neki.notification.domain.model.MessageTone
 import com.neki.notification.domain.model.RenderedMessage
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PathVariable
@@ -15,13 +16,15 @@ import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
 
 /**
- * 테스트용 수동 트리거 API. 스케줄(cron)을 기다리지 않고 잡 실행/푸시 발송을 검증하기 위한 엔드포인트.
+ * 테스트용 수동 트리거 API(pod 내부 전용). 스케줄(cron)을 기다리지 않고 잡 실행/푸시 발송을 검증한다.
  *
- * ⚠️ 항상 노출(프로파일/가드 없음)이므로 운영에서도 호출 시 실제 배치 실행·FCM 발송이 일어난다.
- *    (neki.fcm.enabled=true 인 prod 에서는 실발송, 비활성 환경에서는 LoggingPushSender 로 SKIPPED)
+ * 주의: `neki.test-api.enabled=true`일 때만 빈이 등록된다(기본 비활성). 인증이 없으므로 k8s Service/
+ * Ingress로 외부 노출 금지 — pod 내부 호출 전용. 호출 시 실제 배치 실행·FCM 발송이 일어난다
+ * (neki.fcm.enabled=true 인 prod 는 실발송, 비활성 환경은 LoggingPushSender 로 SKIPPED).
  */
 @RestController
 @RequestMapping("/test/notifications")
+@ConditionalOnProperty(prefix = "neki.test-api", name = ["enabled"], havingValue = "true")
 class TestNotificationController(
     private val launcher: NotificationJobLauncher,
     private val pushSender: PushSender,
