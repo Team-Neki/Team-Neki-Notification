@@ -39,7 +39,7 @@
 | `neki.batch.scheduling-enabled` | `false` | `true` | `@Scheduled` 스케줄러 동작 여부 |
 | `neki.batch.holiday-sync-enabled` | `false` | `true` | 기동 완료 시 공휴일 CSV **인메모리 적재** 여부 |
 | `neki.batch.holiday-csv` | `holidays.csv` | (동일) | 공휴일 원천 CSV 클래스패스 경로 |
-| `neki.test-api.enabled` | `false` | (미설정 → `false`) | 수동 트리거 테스트 API(`TestNotificationController`) 빈 등록 여부. pod 내부 전용 — 필요 시 prod에서 명시적 `true` |
+| `neki.test-api.enabled` | `false` | `true` | 수동 트리거 테스트 API(`TestNotificationController`) 빈 등록 여부. 런북 §5 배포 검증 스모크가 전제한다. **인증 없음** — pod 내부 전용, 8080 외부 노출 금지 |
 
 ## 5. 프로파일 / 필수 외부 설정
 

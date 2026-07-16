@@ -33,7 +33,9 @@ gh workflow run deploy-prod.yml --ref main
 | Firebase 서비스계정 JSON | `/etc/firebase/firebase-service-account.json` Secret 볼륨 마운트 | `fcm.enabled=true`라 빈 생성 실패 → CrashLoop |
 | DB `CREATE TABLE` 권한 | 공유 DB 연결 계정 | Flyway 소유 테이블 생성 실패 |
 
-prod 프로파일이 켜는 플래그: `fcm.enabled`, `batch.scheduling-enabled`, `batch.holiday-sync-enabled` = `true`. 상세: `docs/lld/scheduling-and-config.md §4·§5`.
+prod 프로파일이 켜는 플래그: `fcm.enabled`, `batch.scheduling-enabled`, `batch.holiday-sync-enabled`, `test-api.enabled` = `true`. 상세: `docs/lld/scheduling-and-config.md §4·§5`.
+
+> 주의: `test-api.enabled=true`는 §5 스모크를 위해 켜져 있다. 이 앱에는 인증이 없어 8080에 도달 가능한 누구나 실발송을 트리거할 수 있다 — GitOps의 Service/Ingress로 8080을 클러스터 밖에 노출하지 말 것.
 
 ## 4. 기능 플래그는 런타임 토글 불가
 
@@ -48,12 +50,19 @@ kubectl logs -n prod <pod> | grep -iE "Started Notification|Tomcat started"
 kubectl logs -n prod <pod> | grep -iE "FcmPushSender|LoggingPushSender"
 ```
 
-수동 스모크(운영 주의 — 실발송):
+수동 스모크(운영 주의 — 실발송). `neki.test-api.enabled=true`(prod 프로파일)일 때만 뜬다.
+인증이 없으므로 **pod 내부에서만** 호출한다 — 외부 호스트로 노출해 부르지 말 것.
+
 ```bash
-# 단건 푸시 (notification_log 미기록)
-curl -X POST "http://<host>/test/notifications/push?token=<FCM_TOKEN>"
-# 잡 수동 기동
-curl -X POST "http://<host>/test/notifications/jobs/weekendExploreJob"
+POD=$(kubectl get pod -n prod -l app=neki-notification -o jsonpath='{.items[0].metadata.name}')
+
+# 단건 푸시 (notification_log 미기록 — 이력 검증에는 쓸 수 없다)
+kubectl exec -n prod "$POD" -- \
+  curl -sS -X POST "http://localhost:8080/test/notifications/push?token=<FCM_TOKEN>"
+
+# 잡 수동 기동 (발송 + notification_log 적재). 응답의 status 로 COMPLETED/FAILED 확인
+kubectl exec -n prod "$POD" -- \
+  curl -sS -X POST "http://localhost:8080/test/notifications/jobs/weekendExploreJob"
 ```
 
 ## 6. 흔한 기동 실패

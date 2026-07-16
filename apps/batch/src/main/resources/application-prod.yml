@@ -23,6 +23,16 @@ neki:
     enabled: true
     # Firebase 서비스 계정 JSON. K8s Secret을 파일로 마운트한 경로를 참조한다.
     credentials-location: file:/etc/firebase/firebase-service-account.json
+  test-api:
+    # 수동 트리거 테스트 API(TestNotificationController) 활성화.
+    # 런북(docs/runbook/deployment.md §5)의 배포 검증 스모크가 이 엔드포인트를 전제한다.
+    #
+    # 주의: 이 앱에는 인증(Spring Security)이 없다. fcm.enabled=true 인 prod 에서 이 API 는
+    # 호출자 누구에게나 실제 유저 대상 실발송·배치 기동 권한을 준다. 반드시 pod 내부 호출
+    # 전용으로 유지할 것 — GitOps 레포(overlays/prod/notification-deployment.yaml)의
+    # Service/Ingress 로 8080 을 외부(클러스터 밖)에 노출하지 말 것.
+    # 호출 방법: kubectl exec / port-forward 로 pod 내부에서 curl.
+    enabled: true
   batch:
     # 스케줄러(@Scheduled, NotificationJobScheduler) 활성화.
     scheduling-enabled: true
