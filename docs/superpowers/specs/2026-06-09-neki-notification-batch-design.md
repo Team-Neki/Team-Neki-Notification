@@ -3,6 +3,17 @@
 작성일: 2026-06-09
 스택: Kotlin + Spring Boot + Spring Batch + PostgreSQL
 
+> **이 문서는 2026-06-09 시점의 역사적 설계 기록이다. 현행 기준이 아니다.**
+> 아래 결정들은 이후 뒤집혔으므로 이 문서를 근거로 구현하지 말 것. 현행 기준은 [docs/lld/](../../lld/)·[docs/prd/](../../prd/).
+>
+> | 이 문서의 기술 | 현행 | 정본 |
+> | --- | --- | --- |
+> | 쓰기 접근 = **JPA** (§4) | **jOOQ** (JPA·JdbcTemplate 도입 금지) | [ADR 0001](../../adr/0001-jooq-over-jpa.md) |
+> | 읽기 접근 = **Jdbc** projection (§4) | **jOOQ** (`TargetReaderSupport`) | [data-access.md](../../lld/data-access.md) |
+> | 소유 `holiday` **테이블** (§2·§4·§6·P5) | **인메모리** `InMemoryHolidayRepository` (`V3__drop_holiday_table.sql`로 테이블 제거) | [holiday-sync.md](../../lld/holiday-sync.md) |
+>
+> 여전히 유효한 부분: 배경/목표(§1), 범위·범위 밖 근거(§2), 발송 정책의 뼈대(중복 방지 UNIQUE 키, 동의 필터). 단, 세부 스키마·기술 선택은 위 표대로 대체됐다.
+
 ## 1. 배경 / 목표
 
 네키 앱 사용자에게 **시간 기반 대량 푸시 알림**을 스케줄링으로 발송하는 배치 애플리케이션.

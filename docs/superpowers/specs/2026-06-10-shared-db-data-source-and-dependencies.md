@@ -7,15 +7,18 @@
 
 공통 조건: **푸시 수신 동의 사용자** (`TB_NOTIFICATION.push_agreed = true`).
 
+업로드 이력을 보는 알림은 **소프트 삭제된 사진을 제외**한다(`TB_PHOTO_IMAGE.deleted_at IS NULL`).
+사용자가 지운 사진은 업로드 이력으로 세지 않는다 — 삭제한 사진을 근거로 알림이 가면 안 되기 때문.
+
 | 알림 | 대상 조건 | 데이터 소스 | 상태 |
 | --- | --- | --- | --- |
-| WEEKLY_REMINDER | 7일 전 사진 업로드 이력 + 푸시동의 | `TB_PHOTO_IMAGE.created_at`, `TB_NOTIFICATION.push_agreed` | ✅ 가능 |
+| WEEKLY_REMINDER | 7일 전 사진 업로드 이력(삭제 제외) + 푸시동의 | `TB_PHOTO_IMAGE.created_at` + `.deleted_at IS NULL`, `TB_NOTIFICATION.push_agreed` | ✅ 가능 |
 | WEEKEND_EXPLORE | 전체 대상자 + 푸시동의 | `TB_USERS`, `TB_NOTIFICATION.push_agreed` | ✅ 가능 |
-| HOLIDAY_EXPLORE | 최근 1달 (지도사용 OR 업로드) + 푸시동의 | 업로드: `TB_PHOTO_IMAGE.created_at` / 지도사용: **없음** / 동의: `TB_NOTIFICATION.push_agreed` | ⚠️ 업로드만으로 축소 (이슈 #292) |
+| HOLIDAY_EXPLORE | 최근 1달 (지도사용 OR 업로드, 삭제 제외) + 푸시동의 | 업로드: `TB_PHOTO_IMAGE.created_at` + `.deleted_at IS NULL` / 지도사용: **없음** / 동의: `TB_NOTIFICATION.push_agreed` | ⚠️ 업로드만으로 축소 (이슈 #292) |
 
 변수 원천:
-- `[최근 업로드 요일]` ← `TB_PHOTO_IMAGE.created_at`(또는 `captured_at`)의 요일
-- `[공휴일명]` ← 우리 소유 `holiday` 테이블 (P5)
+- `[최근 업로드 요일]` ← `TB_PHOTO_IMAGE.created_at`의 요일 (미삭제 사진 중 `MAX(created_at)`). `captured_at`은 쓰지 않는다 — 알림 문구가 "언제 올렸는지"를 말하므로 촬영 시각이 아니라 업로드 시각이 기준.
+- `[공휴일명]` ← 인메모리 `InMemoryHolidayRepository` (기동 시 CSV 적재). **소유 테이블 없음** — §5 참조.
 
 ## 2. 푸시 수신 동의 판정 — 확정 모델 (2026-06-18 갱신)
 
@@ -61,7 +64,7 @@ WHERE t.term_type = 'MARKETING'
 ## 3. 관련 공유 테이블 (읽기 전용)
 
 - `TB_USERS(id, ...)` — 유저 식별
-- `TB_PHOTO_IMAGE(user_id, media_id, memo, created_at, updated_at, upload_method[QR/DIRECT_UPLOAD], captured_at)` — 업로드 이력/요일 (V18에서 folder_id 제거됨)
+- `TB_PHOTO_IMAGE(user_id, media_id, memo, created_at, updated_at, upload_method[QR/DIRECT_UPLOAD], captured_at, deleted_at)` — 업로드 이력/요일 (V18에서 folder_id 제거됨). `deleted_at`은 **소프트 삭제**(Server #298) — 대상 조회는 `deleted_at IS NULL`만 센다(§1).
 - `TB_NOTIFICATION(id, user_id[unique,not null], device_token[not null,512], push_agreed[not null,default false], created_at, updated_at)` — **FCM 토큰 + 푸시 동의** (이슈 #291 확정)
 - `TB_TERM`, `TB_USER_TERM_AGREEMENT(...)` — 마케팅 약관 동의. **백로그(§2-1), 현재 미사용**
 
@@ -75,10 +78,11 @@ WHERE t.term_type = 'MARKETING'
 
 ## 5. 이번 스프린트 적용 결정
 
-- HOLIDAY_EXPLORE 대상 = **최근 1달 사진 업로드 이력 + `push_agreed`** (지도사용 절반 제외).
-- 푸시 동의·FCM 토큰 모두 `TB_NOTIFICATION` 단일 테이블(#291 확정)에서 조회. 대상 쿼리에 `JOIN TB_NOTIFICATION ON user_id AND push_agreed = true`로 바인딩.
+- HOLIDAY_EXPLORE 대상 = **최근 1달 사진 업로드 이력(삭제 제외) + `push_agreed`** (지도사용 절반 제외).
+- 푸시 동의·FCM 토큰 모두 `TB_NOTIFICATION` 단일 테이블(#291 확정)에서 조회. 대상 쿼리는 **`tb_notification`을 베이스 테이블**로 두고 `push_agreed = true` + keyset 커서(`user_id > ?`)를 걸며, 업로드 이력 조건은 `tb_photo_image` **EXISTS 서브쿼리**로 얹는다. 이 골격(동의·커서·정렬·LIMIT)은 `TargetReaderSupport.query()`가 강제해 리더가 동의 필터를 빠뜨릴 수 없다.
 - 마케팅 약관 동의(#290) 연계는 **백로그**(§2-1). 이번 스프린트 발송 필터에서 제외.
-- 우리 소유 테이블(`notification_log`, `holiday`, Spring Batch `BATCH_*`)은 **별도 Flyway 마이그레이션**으로 추가하되, 공유 DB Flyway 이력과 충돌하지 않도록 네이밍/실행 주체를 백엔드와 협의(예: 별도 schema 또는 분리된 마이그레이션 경로).
+- 우리 소유 테이블은 `notification_log` + Spring Batch `BATCH_*`뿐이며 **별도 Flyway 마이그레이션**으로 추가하되, 공유 DB Flyway 이력과 충돌하지 않도록 네이밍/실행 주체를 백엔드와 협의(예: 별도 schema 또는 분리된 마이그레이션 경로).
+- **공휴일은 소유 테이블이 없다.** V1이 만든 `holiday` 테이블은 `V3__drop_holiday_table.sql`로 제거하고 `InMemoryHolidayRepository`로 이관했다(기동 시 CSV 적재). 상세는 [holiday-sync.md](../../lld/holiday-sync.md).
 
 ## 6. Flyway 소유권 주의
 
