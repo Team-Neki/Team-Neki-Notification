@@ -1,4 +1,4 @@
-# 공휴일 시드 데이터 (HolidaySource → holiday 테이블 upsert)
+# 공휴일 시드 데이터 (HolidaySource → 인메모리 InMemoryHolidayRepository 적재)
 # 형식: holiday_date,name,notify_offset_days  (ISO yyyy-MM-dd, UTF-8)
 #   - notify_offset_days 생략 시 0(당일 발송). 음수=공휴일 전(예: -1 전날 발송).
 #   - 주석(#)/빈 줄/헤더 행 허용. name에 쉼표 불가.

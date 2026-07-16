@@ -1,6 +1,5 @@
 package com.neki.notification.batch
 
-import com.neki.notification.infra.jooq.Tables.HOLIDAY
 import com.neki.notification.infra.jooq.Tables.NOTIFICATION_LOG
 import org.jooq.DSLContext
 import org.junit.jupiter.api.Test
@@ -34,8 +33,8 @@ class SchemaMigrationValidationTest {
     @Test
     fun `Flyway 스키마가 jOOQ 생성 타입과 정합한다`() {
         // 생성 타입의 모든 컬럼을 명시 조회 — DB에 없는 컬럼이면 SQL 단계에서 실패한다.
+        // (공휴일은 인메모리로 이관되어 소유 테이블/생성 타입이 없다.)
         dsl.selectFrom(NOTIFICATION_LOG).limit(0).fetch()
-        dsl.selectFrom(HOLIDAY).limit(0).fetch()
     }
 
     companion object {

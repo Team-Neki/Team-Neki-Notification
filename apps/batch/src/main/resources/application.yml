@@ -14,8 +14,8 @@ spring:
     # → 이 앱 전용 history 테이블로 분리한다. server 의 flyway_schema_history 와 독립적으로 동작.
     table: flyway_schema_history_notification
     # 공유 스키마에는 외부 소유 테이블(tb_notification, tb_photo_image 등)이 이미 존재(non-empty)하므로
-    # baseline 으로 채택한다. 단 baseline-version=0 으로 두어 V1(notification_log/holiday)부터
-    # 전부 적용되게 한다(기본값 1 이면 V1 이 baseline 으로 skip 되어 소유 테이블이 생성되지 않음).
+    # baseline 으로 채택한다. 단 baseline-version=0 으로 두어 V1(notification_log)부터 전부 적용되게 한다
+    # (기본값 1 이면 V1 이 baseline 으로 skip 됨). 공휴일은 V1 이 만든 holiday 를 V3 로 DROP하고 인메모리로 관리.
     baseline-on-migrate: true
     baseline-version: "0"
 
@@ -51,7 +51,7 @@ neki:
   batch:
     # 스케줄러(@Scheduled) 활성화. 운영에서만 true (NotificationJobScheduler).
     scheduling-enabled: false
-    # 기동 시 공휴일 CSV → holiday 테이블 동기화 활성화. 운영에서만 true (HolidaySyncRunner).
+    # 기동 완료 이벤트 시 공휴일 CSV → 인메모리 적재 활성화. 운영에서만 true (HolidayLoader).
     holiday-sync-enabled: false
     # 공휴일 원천 CSV 경로(클래스패스). 추후 Google Sheet로 전환 예정(issue #17).
     holiday-csv: holidays.csv

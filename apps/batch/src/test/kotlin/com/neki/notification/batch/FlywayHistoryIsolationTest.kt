@@ -2,6 +2,7 @@ package com.neki.notification.batch
 
 import org.flywaydb.core.Flyway
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.testcontainers.containers.PostgreSQLContainer
@@ -80,7 +81,8 @@ class FlywayHistoryIsolationTest {
             conn.createStatement().use { st ->
                 // 1) V1 이 skip 되지 않고 소유 테이블이 실제로 생성됨
                 assertTrue(tableExists(st, "notification_log"), "V1 의 notification_log 가 생성되어야 한다")
-                assertTrue(tableExists(st, "holiday"), "V1 의 holiday 가 생성되어야 한다")
+                // holiday 는 V1 이 만들지만 V3(DROP)로 제거되어 인메모리로 이관됨 → 최종 스키마엔 없어야 한다(V3 적용 증거)
+                assertFalse(tableExists(st, "holiday"), "holiday 는 V3 로 DROP 되어 최종 스키마에 없어야 한다")
                 // 2) V2(Spring Batch 메타) 도 적용됨
                 assertTrue(tableExists(st, "batch_job_instance"), "V2 의 Spring Batch 메타 테이블이 생성되어야 한다")
                 // 3) 전용 history 테이블이 따로 만들어짐
