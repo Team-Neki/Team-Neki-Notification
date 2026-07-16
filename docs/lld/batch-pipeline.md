@@ -5,10 +5,10 @@
 
 ## 1. 공통 Step 파이프라인
 
-세 잡(WEEKLY/WEEKEND/HOLIDAY)은 동일 골격을 공유하고 **Reader 쿼리와 `NotificationType`만** 다르다. 공통 조립은 `NotificationStepFactory`가 담당한다(OCP: 타입 추가 = `*Job` 클래스 추가).
+세 잡(WEEKLY/WEEKEND/HOLIDAY)은 동일 골격을 공유하고 **Reader 쿼리와 `NotificationType`만** 다르다. 공통 조립은 `NotificationStepFactory`가 담당한다(OCP: 타입 추가 = `*Job` 클래스 추가). 스텝 조립·구동 코드는 모두 `adapter/in/batch`에 있고, Reader/Processor/Writer는 팩토리 전용 `private`이다.
 
 ```
-Reader (jOOQ plain SQL)  → 발송 대상 + 변수 원천값 + FCM 토큰 (keyset 페이징, user_id 오름차순)
+Reader (jOOQ DSL)        → 발송 대상 + 변수 원천값 + FCM 토큰 (keyset 페이징, user_id 오름차순)
 Processor                → alreadySent 조회 → NotificationProcessor.decide → Send(렌더된 문구) | Skip(null)
 Writer                   → FCM 발송(send) → notification_log 적재(save)
 ```

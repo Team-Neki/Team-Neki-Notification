@@ -1,4 +1,4 @@
-package com.neki.notification.batch.application.launch
+package com.neki.notification.batch.adapter.`in`
 
 import org.slf4j.LoggerFactory
 import org.springframework.batch.core.Job

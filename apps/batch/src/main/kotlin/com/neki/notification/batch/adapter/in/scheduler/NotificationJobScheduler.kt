@@ -1,6 +1,6 @@
 package com.neki.notification.batch.adapter.`in`.scheduler
 
-import com.neki.notification.batch.application.launch.NotificationJobLauncher
+import com.neki.notification.batch.adapter.`in`.NotificationJobLauncher
 import org.springframework.batch.core.Job
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
