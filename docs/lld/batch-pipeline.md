@@ -10,12 +10,12 @@
 ```
 Reader (jOOQ DSL)        → 발송 대상 + 변수 원천값 + FCM 토큰 (keyset 페이징, user_id 오름차순)
 Processor                → alreadySent 조회 → NotificationProcessor.decide → Send(렌더된 문구) | Skip(null)
-Writer                   → FCM 발송(send) → notification_log 적재(save)
+Writer                   → FCM 발송(send) → notification_log 적재(save, 전 결과) → [SUCCESS면] tb_notification_hist 적재(best-effort)
 ```
 
 - **Reader**: `PagingSendTargetItemReader`(keyset 페이징). `user_id > cursor`로 페이지를 당겨 1건씩 흘리고, 빈 페이지를 만나면 소진으로 종료. 단일 인스턴스·단일 스레드 전제.
 - **Processor**: `NotificationItemProcessor`. `logStore.alreadySent(userId, type, businessDate)` → `NotificationProcessor.decide()`. Skip이면 `null` 반환해 청크에서 필터링. (동의 재확인은 하지 않음 — 동의는 Reader 쿼리 `push_agreed=true`가 단일 출처.)
-- **Writer**: `NotificationItemWriter`. 각 건을 `pushSender.send()` 후 결과(SUCCESS/FAILED/SKIPPED)로 `NotificationLog`를 적재.
+- **Writer**: `NotificationItemWriter`. 각 건을 `pushSender.send()` 후 결과(SUCCESS/FAILED/SKIPPED)로 `NotificationLog`를 적재. 추가로 **SUCCESS 건만** 백엔드 소유 `tb_notification_hist`(앱 "최근 알림" 피드)에 best-effort로 적재한다. `notification_log`(우리 소유·중복방지 SoT)는 전 결과를 남기지만, hist는 유저가 실제 받은 알림만 보여야 하므로 SUCCESS 한정(백엔드 `SendPushUseCase`와 동일). hist 적재 실패는 발송·`notification_log`를 깨지 않는다(REQUIRES_NEW 격리 + 예외 흡수 → [data-access.md §6](data-access.md), code-notes H-3).
 
 ## 2. 조립 상수 (`NotificationStepFactory`)
 

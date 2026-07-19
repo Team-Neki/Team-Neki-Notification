@@ -81,7 +81,11 @@ class NotificationJobE2ETest {
         jdbc.execute(
             "CREATE TABLE IF NOT EXISTS notification_log (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, notification_type VARCHAR(32) NOT NULL, message_tone VARCHAR(16) NOT NULL, variable_applied BOOLEAN NOT NULL, title VARCHAR(255) NOT NULL, body VARCHAR(500) NOT NULL, business_date DATE NOT NULL, fcm_result VARCHAR(16) NOT NULL, sent_at TIMESTAMP NOT NULL, CONSTRAINT uq_notification_log_user_type_date UNIQUE (user_id, notification_type, business_date))",
         )
-        jdbc.execute("TRUNCATE tb_notification, tb_photo_image, notification_log RESTART IDENTITY")
+        // tb_notification_hist는 백엔드(Team-Neki-Server V22) 소유 외부 테이블. 픽스처도 동일 스키마로 모사.
+        jdbc.execute(
+            "CREATE TABLE IF NOT EXISTS tb_notification_hist (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, type VARCHAR(50) NOT NULL, title VARCHAR(100) NOT NULL, body VARCHAR(500) NOT NULL, link VARCHAR(512), created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+        )
+        jdbc.execute("TRUNCATE tb_notification, tb_photo_image, notification_log, tb_notification_hist RESTART IDENTITY")
 
         jdbc.execute(
             """
@@ -107,6 +111,13 @@ class NotificationJobE2ETest {
             type,
         )
 
+    private fun histUserIds(type: String): List<Long> =
+        jdbc.queryForList(
+            "SELECT user_id FROM tb_notification_hist WHERE type = ? ORDER BY user_id",
+            Long::class.java,
+            type,
+        )
+
     @Test
     fun `weekend - 동의자 전원 발송·적재, 미동의 제외`() {
         val exec = jobLauncher.run(weekendExploreJob, params())
@@ -118,6 +129,8 @@ class NotificationJobE2ETest {
             4,
             jdbc.queryForObject("SELECT count(*) FROM notification_log WHERE fcm_result = 'SUCCESS'", Int::class.java),
         )
+        // 성공 발송분은 최근알림 피드(tb_notification_hist)에도 그대로 적재된다.
+        assertEquals(listOf(1L, 3L, 4L, 5L), histUserIds("WEEKEND_EXPLORE"))
     }
 
     @Test
@@ -129,6 +142,8 @@ class NotificationJobE2ETest {
 
         assertEquals(0, recordingPushSender.sent.size, "2회차에는 모두 ALREADY_SENT로 스킵")
         assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM notification_log", Int::class.java))
+        // 재실행 시 발송 자체가 스킵되므로 hist도 중복 적재되지 않는다.
+        assertEquals(4, jdbc.queryForObject("SELECT count(*) FROM tb_notification_hist", Int::class.java))
     }
 
     @Test
@@ -149,6 +164,15 @@ class NotificationJobE2ETest {
                 "SELECT variable_applied FROM notification_log WHERE user_id = 5 AND notification_type = 'WEEKLY_REMINDER'",
                 Boolean::class.java,
             )!!,
+        )
+        // hist에도 동일한 렌더 결과(type=enum명, title)가 그대로 적재된다.
+        assertEquals(listOf(1L, 5L), histUserIds("WEEKLY_REMINDER"))
+        assertEquals(
+            "지난 목요일처럼 오늘도 남겨볼까요?",
+            jdbc.queryForObject(
+                "SELECT title FROM tb_notification_hist WHERE user_id = 5 AND type = 'WEEKLY_REMINDER'",
+                String::class.java,
+            ),
         )
     }
 

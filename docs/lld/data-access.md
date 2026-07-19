@@ -9,6 +9,7 @@
 | **앱 소유** | `notification_log` | Flyway V1 마이그레이션 + jOOQ **codegen 대상**(생성 타입으로 타입세이프 쿼리) |
 | **Spring Batch 메타** | `BATCH_*` | Flyway V2 마이그레이션 |
 | **외부 소유(read-only)** | `tb_notification`, `tb_photo_image` | 스키마 관리·codegen **안 함**. jOOQ **DSL**(이름 기반 `DSL.table`/`DSL.field`)로 조회 |
+| **외부 소유(write)** | `tb_notification_hist` | 백엔드(Team-Neki-Server V22) 소유. 스키마 관리·codegen **안 함**. jOOQ **DSL** 이름 기반 INSERT. 발송 성공분을 best-effort로 적재(앱 "최근 알림" 피드용) → §6·[batch-pipeline.md §1](batch-pipeline.md). |
 
 > 공휴일은 V1이 만든 `holiday` 테이블을 V3(`V3__drop_holiday_table.sql`)로 제거하고 인메모리(`InMemoryHolidayRepository`)로 이관했다. codegen은 V1만 읽으므로 `excludes="HOLIDAY"`로 생성 타입에서 뺀다. 상세는 [holiday-sync.md](holiday-sync.md).
 
@@ -30,6 +31,7 @@
 | 어댑터 | 포트 | 방식 | 비고 |
 | --- | --- | --- | --- |
 | `NotificationLogStoreAdapter` | `NotificationLogStore` | jOOQ 생성 타입 | `insertInto`/`fetchExists`. `sentAt` 없으면 적재 시각 주입(UTC). `clock` 빈 주입 강제. |
+| `NotificationHistStoreAdapter` | `NotificationHistStore` | jOOQ DSL(이름 기반) | 외부 소유 `tb_notification_hist`에 `insertInto`. `type`=enum명, `id`·`created_at`·`updated_at`은 DB DEFAULT 위임. **REQUIRES_NEW**로 청크 트랜잭션과 분리(best-effort 격리, H-3). |
 | `InMemoryHolidayRepository` | `HolidayCalendar`+`HolidayStore` | 인메모리 | `@Volatile` 스냅샷, `holiday_date` 멱등 병합 → [holiday-sync.md](holiday-sync.md) |
 | `WeeklyReminderTargetReader` | (Reader) | jOOQ DSL | 7일 전 업로드 EXISTS + `[최근 업로드 요일]`, soft-delete 제외 |
 | `WeekendExploreTargetReader` | (Reader) | jOOQ DSL | 동의자 전원 |
@@ -62,12 +64,15 @@ spring.flyway:
 
 리더는 jOOQ DSL이지만 외부 테이블은 codegen 대상이 아니라(이름 기반 참조) **부팅 시점엔 검증되지 않는다**. 스키마 불일치는 기동이 아니라 **cron 잡 첫 실행에서 SQL 에러**로 드러난다.
 
-| 테이블 · 컬럼 | 사용 잡 |
-| --- | --- |
-| `tb_notification.user_id`, `.device_token`, `.push_agreed` | 전체 |
-| `tb_photo_image.user_id`, `.created_at`, `.deleted_at` | WEEKLY_REMINDER, HOLIDAY_EXPLORE |
+| 테이블 · 컬럼 | 사용 잡 | 방향 |
+| --- | --- | --- |
+| `tb_notification.user_id`, `.device_token`, `.push_agreed` | 전체 | read |
+| `tb_photo_image.user_id`, `.created_at`, `.deleted_at` | WEEKLY_REMINDER, HOLIDAY_EXPLORE | read |
+| `tb_notification_hist.user_id`, `.type`, `.title`, `.body`, `.link` | 전체(발송 성공분) | **write** |
 
 > FCM 토큰은 현재 `tb_notification.device_token` **컬럼**을 가정한다. 백엔드 [#291](https://github.com/Team-Neki/Team-Neki-Server/issues/291)이 **별도 테이블**로 구현되면 쿼리와 불일치하므로 머지 전 스키마 정합성 확인이 필요하다.
+>
+> `tb_notification_hist`는 백엔드([Team-Neki-Server V22](https://github.com/Team-Neki/Team-Neki-Server) `V22__create_notification_hist_table.sql`) 소유. 앱의 "최근 알림" 피드(`GetRecentNotificationsUseCase`)가 읽으므로 배치 발송분도 여기 적재한다(백엔드 `SendPushUseCase`와 대칭). **읽기 외부 테이블과 달리 write라 스키마 드리프트가 부팅이 아니라 발송 시 SQL 에러**로 드러난다 → 적재를 REQUIRES_NEW+try/catch로 격리해 실패해도 발송·`notification_log`를 지킨다(best-effort, [batch-pipeline.md §1](batch-pipeline.md), code-notes H-3). `type`은 우리 `NotificationType.name`(WEEKLY_REMINDER 등)을 그대로 넣으므로 앱의 type 코드 렌더링과 정합이 필요하면 앱팀과 확인.
 
 ## 7. 정합성 테스트
 
