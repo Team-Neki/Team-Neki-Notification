@@ -7,7 +7,10 @@
 - 코드 산출물 전반(소스·주석·설정·커밋 메시지)에 **이모지 금지**.
 - `domain` 모듈은 프레임워크에 의존하지 않는다(불변식). 도메인 순수성을 깨지 말 것.
 - 데이터 접근은 **jOOQ + Flyway**로 통일한다. JPA·JdbcTemplate·QueryDSL 도입 금지([ADR 0001](docs/adr/0001-jooq-over-jpa.md)).
-- TDD(테스트 우선). 테스트는 Testcontainers(PostgreSQL)를 쓰므로 Docker 실행 필요.
+- TDD(테스트 우선). **테스트 종류별 도구 구분**:
+  - **영속성/통합 테스트**(infra 어댑터·Job E2E·Flyway/스키마 검증 등 실제 DB 접근) → **Testcontainers(PostgreSQL)**. 이 테스트들 때문에 실행 시 **Docker 필요**. 인메모리 H2 등 대체 DB로 우회하지 않는다. 예: `NotificationLogStoreAdapter`/`NotificationHistStoreAdapter`, `NotificationJobE2ETest`, `SchemaMigrationValidationTest`.
+  - **순수 단위 테스트**(DB를 접근하지 않는 도메인 로직·정책·판정, application 서비스의 분기 로직) → **JUnit5 + MockK**로 작성하고 컨테이너를 띄우지 않는다(불필요한 기동 오버헤드·Docker 종속 회피). 예: `NotificationProcessorTest`, `MessageRendererTest`, `NotificationSendServiceTest`.
+  - 판단 기준: **테스트가 실제 SQL/스키마를 검증하면 Testcontainers, 순수 로직 분기만 검증하면 MockK.**
 
 ## 무엇을 읽을까 (라우팅 표)
 
