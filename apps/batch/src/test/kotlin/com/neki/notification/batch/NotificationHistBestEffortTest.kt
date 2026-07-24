@@ -1,11 +1,7 @@
 package com.neki.notification.batch
 
-import com.neki.notification.application.port.out.NotificationLogStore
 import com.neki.notification.application.port.out.PushSender
-import com.neki.notification.batch.adapter.out.NotificationLogStoreAdapter
 import com.neki.notification.domain.model.FcmResult
-import com.neki.notification.domain.model.NotificationLog
-import com.neki.notification.domain.model.NotificationType
 import com.neki.notification.domain.model.RenderedMessage
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -25,41 +21,28 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import java.time.LocalDate
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.test.assertEquals
 
 /**
- * B-5/M-3: CHUNK_SIZE=1의 건별 트랜잭션 격리 검증 (Testcontainers PostgreSQL).
+ * H-3 best-effort 격리 검증(Testcontainers PostgreSQL).
  *
- * 한 건의 `save()` 실패가 같은 실행에서 이미 발송·적재된 다른 건을 롤백시키지 않음을 단언한다.
- * 청크>1이었다면 동일 청크의 선행 건들도 함께 롤백되어 0건이 남는다.
+ * `tb_notification_hist`(백엔드 소유 외부 테이블)가 없어 hist 적재가 매 건 실패하는 상황을 재현한다.
+ * hist 적재는 REQUIRES_NEW로 청크 트랜잭션과 분리되므로, 그 실패가 발송·`notification_log`를 깨지
+ * 않고 Job은 COMPLETED로 끝나야 한다. 같은 청크 트랜잭션에서 try/catch만 했다면 PostgreSQL이
+ * 트랜잭션을 abort시켜 `notification_log`까지 롤백(0건)되어 이 단언이 깨진다.
  */
 @SpringBootTest
 @Testcontainers
-class NotificationWriterIsolationTest {
+class NotificationHistBestEffortTest {
 
     @TestConfiguration
-    class FaultConfig {
+    class StubConfig {
         @Bean
         @Primary
         fun stubPushSender(): PushSender =
             object : PushSender {
                 override fun send(token: String, message: RenderedMessage): FcmResult = FcmResult.SUCCESS
-            }
-
-        /** user=FAIL_USER_ID의 적재만 실패시키는 데코레이터(나머지는 실제 어댑터에 위임). */
-        @Bean
-        @Primary
-        fun failingLogStore(adapter: NotificationLogStoreAdapter): NotificationLogStore =
-            object : NotificationLogStore {
-                override fun alreadySent(userId: Long, type: NotificationType, businessDate: LocalDate): Boolean =
-                    adapter.alreadySent(userId, type, businessDate)
-
-                override fun save(log: NotificationLog) {
-                    if (log.userId == FAIL_USER_ID) error("의도된 적재 실패 user=$FAIL_USER_ID")
-                    adapter.save(log)
-                }
             }
     }
 
@@ -68,45 +51,38 @@ class NotificationWriterIsolationTest {
 
     @Autowired @Qualifier("weekendExploreJob") private lateinit var weekendExploreJob: Job
 
-    private val businessDate = "2026-06-18"
-
     private fun params(): JobParameters =
         JobParametersBuilder()
-            .addString("businessDate", businessDate)
+            .addString("businessDate", "2026-06-18")
             .addLong("runId", runId.incrementAndGet())
             .toJobParameters()
 
     @BeforeEach
     fun setUp() {
         jdbc.execute("CREATE TABLE IF NOT EXISTS tb_notification (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL UNIQUE, device_token VARCHAR(512) NOT NULL, push_agreed BOOLEAN NOT NULL DEFAULT false)")
-        jdbc.execute("CREATE TABLE IF NOT EXISTS tb_photo_image (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, created_at TIMESTAMP NOT NULL)")
+        jdbc.execute("CREATE TABLE IF NOT EXISTS tb_photo_image (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, created_at TIMESTAMP NOT NULL, deleted_at TIMESTAMP)")
         jdbc.execute(
             "CREATE TABLE IF NOT EXISTS notification_log (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, notification_type VARCHAR(32) NOT NULL, message_tone VARCHAR(16) NOT NULL, variable_applied BOOLEAN NOT NULL, title VARCHAR(255) NOT NULL, body VARCHAR(500) NOT NULL, business_date DATE NOT NULL, fcm_result VARCHAR(16) NOT NULL, sent_at TIMESTAMP NOT NULL, CONSTRAINT uq_notification_log_user_type_date UNIQUE (user_id, notification_type, business_date))",
         )
-        jdbc.execute(
-            "CREATE TABLE IF NOT EXISTS tb_notification_hist (id BIGSERIAL PRIMARY KEY, user_id BIGINT NOT NULL, type VARCHAR(50) NOT NULL, title VARCHAR(100) NOT NULL, body VARCHAR(500) NOT NULL, link VARCHAR(512), created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)",
-        )
-        jdbc.execute("TRUNCATE tb_notification, tb_photo_image, notification_log, tb_notification_hist RESTART IDENTITY")
+        // 주의: tb_notification_hist는 일부러 만들지 않는다 → hist 적재가 매 건 실패하는 조건.
+        jdbc.execute("DROP TABLE IF EXISTS tb_notification_hist")
+        jdbc.execute("TRUNCATE tb_notification, tb_photo_image, notification_log RESTART IDENTITY")
 
-        // keyset 순서: user 1, 3, 4, 5 (user2 미동의 제외). user4 적재에서 실패하도록 구성.
         jdbc.execute(
             """
             INSERT INTO tb_notification(user_id, device_token, push_agreed) VALUES
-                (1, 'tok-1', true), (2, 'tok-2', false), (3, 'tok-3', true), (4, 'tok-4', true), (5, 'tok-5', true)
+                (1, 'tok-1', true), (3, 'tok-3', true), (5, 'tok-5', true)
             """.trimIndent(),
         )
     }
 
     @Test
-    fun `건별 트랜잭션 - 한 건 적재 실패가 선행 발송 건을 롤백시키지 않는다`() {
+    fun `hist 적재가 전건 실패해도 발송과 notification_log는 유지되고 Job은 완료된다`() {
         val exec = jobLauncher.run(weekendExploreJob, params())
 
-        // user4에서 save 실패 → 스텝 FAILED
-        assertEquals(BatchStatus.FAILED, exec.status)
-        // 선행 건(user1, user3)은 각자의 트랜잭션으로 이미 커밋됨 → 롤백되지 않음.
-        // (청크>1이었다면 user1·3도 user4와 같은 청크에서 함께 롤백되어 0건)
+        assertEquals(BatchStatus.COMPLETED, exec.status)
         assertEquals(
-            listOf(1L, 3L),
+            listOf(1L, 3L, 5L),
             jdbc.queryForList(
                 "SELECT user_id FROM notification_log WHERE notification_type = 'WEEKEND_EXPLORE' ORDER BY user_id",
                 Long::class.java,
@@ -115,7 +91,6 @@ class NotificationWriterIsolationTest {
     }
 
     companion object {
-        const val FAIL_USER_ID = 4L
         private val runId = AtomicLong()
 
         @Container
