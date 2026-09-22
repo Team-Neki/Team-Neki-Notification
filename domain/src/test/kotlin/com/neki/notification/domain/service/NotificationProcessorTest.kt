@@ -7,6 +7,7 @@ import com.neki.notification.domain.model.SendDecision
 import com.neki.notification.domain.model.SendTarget
 import com.neki.notification.domain.model.SkipReason
 import com.neki.notification.domain.policy.ToneAssignmentPolicy
+import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -24,6 +25,9 @@ import kotlin.test.assertTrue
  */
 class NotificationProcessorTest {
 
+    /** epochDay 20718 은 3 의 배수라 이 날의 톤은 userId % 3 과 같다. 아래 주석의 userId -> 톤 매핑 기준. */
+    private val businessDate = LocalDate.of(2026, 9, 22)
+
     private fun target(
         userId: Long,
         variables: Map<MessageVariable, String?> = emptyMap(),
@@ -39,6 +43,7 @@ class NotificationProcessorTest {
             target = target(userId = 1L),
             type = NotificationType.WEEKEND_EXPLORE,
             alreadySent = true,
+            businessDate = businessDate,
         )
         assertEquals(SendDecision.Skip(SkipReason.ALREADY_SENT), decision)
     }
@@ -50,6 +55,7 @@ class NotificationProcessorTest {
             target = target(userId = 0L),
             type = NotificationType.WEEKEND_EXPLORE,
             alreadySent = false,
+            businessDate = businessDate,
         )
         val send = assertIs<SendDecision.Send>(decision)
         assertEquals(MessageTone.INFORMATIVE, send.message.actualTone)
@@ -58,16 +64,21 @@ class NotificationProcessorTest {
     }
 
     @Test
-    fun `톤은 ToneAssignmentPolicy 와 일치한다`() {
-        // userId=2 -> SUGGESTIVE. WEEKEND_EXPLORE SUGGESTIVE 는 변수 없음.
+    fun `톤은 businessDate 를 반영한 ToneAssignmentPolicy 와 일치한다`() {
+        // userId=2, 2026-09-23(epochDay 20719) -> floorMod(2 + 20719, 3) = 0 -> INFORMATIVE.
+        // 같은 userId 라도 businessDate(20718) 기준이면 SUGGESTIVE 였을 값이라, 날짜가 실제로 전달되는지 검증된다.
         val userId = 2L
+        val nextDay = businessDate.plusDays(1)
         val decision = NotificationProcessor.decide(
             target = target(userId = userId),
             type = NotificationType.WEEKEND_EXPLORE,
             alreadySent = false,
+            businessDate = nextDay,
         )
         val send = assertIs<SendDecision.Send>(decision)
-        assertEquals(ToneAssignmentPolicy.assign(userId), send.message.actualTone)
+        assertEquals(ToneAssignmentPolicy.assign(userId, nextDay), send.message.actualTone)
+        assertEquals(MessageTone.INFORMATIVE, send.message.actualTone)
+        assertEquals("주말 전 포토부스 확인하기", send.message.title)
     }
 
     @Test
@@ -80,6 +91,7 @@ class NotificationProcessorTest {
             ),
             type = NotificationType.WEEKLY_REMINDER,
             alreadySent = false,
+            businessDate = businessDate,
         )
         val send = assertIs<SendDecision.Send>(decision)
         assertEquals(MessageTone.SUGGESTIVE, send.message.actualTone)
@@ -94,6 +106,7 @@ class NotificationProcessorTest {
             target = target(userId = 2L, variables = emptyMap()),
             type = NotificationType.WEEKLY_REMINDER,
             alreadySent = false,
+            businessDate = businessDate,
         )
         val send = assertIs<SendDecision.Send>(decision)
         assertEquals(MessageTone.INFORMATIVE, send.message.actualTone)

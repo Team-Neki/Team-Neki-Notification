@@ -62,7 +62,7 @@ class NotificationJobE2ETest {
     @Autowired @Qualifier("weeklyReminderJob") private lateinit var weeklyReminderJob: Job
     @Autowired @Qualifier("holidayExploreJob") private lateinit var holidayExploreJob: Job
 
-    private val businessDate = "2026-06-18" // 목요일
+    private val businessDate = "2026-06-18" // 목요일. epochDay 20622 는 3 의 배수라 이 날의 톤은 userId % 3 과 같다.
 
     private fun params(date: String = businessDate): JobParameters =
         JobParametersBuilder()
@@ -153,7 +153,8 @@ class NotificationJobE2ETest {
         assertEquals(BatchStatus.COMPLETED, exec.status)
         // 06-11 업로드 + 동의: user1, user5 (user2 미동의 제외)
         assertEquals(listOf(1L, 5L), logUserIds("WEEKLY_REMINDER"))
-        // user5 → floorMod(5,3)=2 → SUGGESTIVE(변수 필요) → "지난 목요일" 치환
+        // 톤 = floorMod(userId + epochDay, 3). epochDay 가 3 의 배수인 날이라 user5 → 2 → SUGGESTIVE(변수 필요) → "지난 목요일" 치환
+        assertEquals(0, Math.floorMod(LocalDate.parse(businessDate).toEpochDay(), 3))
         val title = jdbc.queryForObject(
             "SELECT title FROM notification_log WHERE user_id = 5 AND notification_type = 'WEEKLY_REMINDER'",
             String::class.java,
@@ -209,7 +210,8 @@ class NotificationJobE2ETest {
         assertEquals(BatchStatus.COMPLETED, exec.status)
         // 최근 1달 업로드 + 동의: user1, user4, user5
         assertEquals(listOf(1L, 4L, 5L), logUserIds("HOLIDAY_EXPLORE"))
-        // user1 → floorMod(1,3)=1 → FRIENDLY(변수 필요) → "테스트공휴일에 약속 있으신가요?"
+        // 톤 = floorMod(userId + epochDay, 3). epochDay 가 3 의 배수인 날이라 user1 → 1 → FRIENDLY(변수 필요) → "테스트공휴일에 약속 있으신가요?"
+        assertEquals(0, Math.floorMod(LocalDate.parse(businessDate).toEpochDay(), 3))
         val title = jdbc.queryForObject(
             "SELECT title FROM notification_log WHERE user_id = 1 AND notification_type = 'HOLIDAY_EXPLORE'",
             String::class.java,

@@ -52,10 +52,11 @@
 
 ## 6. 톤 A/B 배정 정책
 
-톤별 클릭률 분석(스펙 1-6)을 위해 유저별로 톤을 **결정적으로** 배정한다.
+톤별 클릭률 분석(스펙 1-6)을 위해 발송 건마다 톤을 **결정적으로** 배정한다.
 
-- 규칙: `tone = MessageTone.entries[ Math.floorMod(userId, 3) ]` → `0=INFORMATIVE, 1=FRIENDLY, 2=SUGGESTIVE`
-- 같은 유저는 항상 같은 톤 코호트에 속한다(안정적 A/B 버킷). 배정된 톤은 `notification_log.message_tone`에 기록한다.
+- 규칙: `tone = MessageTone.entries[ Math.floorMod(userId + businessDate.toEpochDay(), 3) ]` → `0=INFORMATIVE, 1=FRIENDLY, 2=SUGGESTIVE`
+- 같은 유저라도 발송일(`businessDate`)이 바뀌면 톤이 순환한다. 같은 알림 타입을 매번 같은 문구로 받는 피로를 피하기 위해, 유저별 고정 코호트 규칙(2026-09 이전 `floorMod(userId, 3)`)은 폐기했다. 톤별 분석은 유저 단위가 아니라 발송 단위로 한다.
+- 같은 `(userId, businessDate)`면 재실행해도 같은 톤이 나온다. 배정된 톤은 `notification_log.message_tone`에 기록한다.
 
 ## 7. 중복 발송 방지 / 전달 보장 정책
 
