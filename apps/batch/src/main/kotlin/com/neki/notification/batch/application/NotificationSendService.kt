@@ -37,7 +37,7 @@ class NotificationSendService(
      */
     fun prepare(target: SendTarget, type: NotificationType, businessDate: LocalDate): PreparedNotification? {
         val alreadySent = logStore.alreadySent(target.userId, type, businessDate)
-        return when (val decision = NotificationProcessor.decide(target, type, alreadySent)) {
+        return when (val decision = NotificationProcessor.decide(target, type, alreadySent, businessDate)) {
             is SendDecision.Send -> PreparedNotification(target, type, decision.message, businessDate)
             is SendDecision.Skip -> null
         }

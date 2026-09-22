@@ -55,13 +55,14 @@
 
 ## 5. 톤 배정 정책 (A/B)
 
-스펙 1-6(톤별 클릭률 분석)을 위해 **유저별로 톤을 결정적으로(deterministic) 배정**한다.
-같은 유저는 항상 같은 톤 버킷에 속해 코호트가 안정적이어야 한다.
+스펙 1-6(톤별 클릭률 분석)을 위해 **발송 건마다 톤을 결정적으로(deterministic) 배정**한다.
+같은 유저라도 발송일이 바뀌면 톤이 순환하므로, 같은 알림 타입을 매번 같은 문구로 받지 않는다.
 
-- 규칙: `tone = MessageTone.entries[ floorMod(userId, 3) ]`
-  - `floorMod(userId, 3) == 0 → INFORMATIVE`, `1 → FRIENDLY`, `2 → SUGGESTIVE`
+- 규칙: `tone = MessageTone.entries[ floorMod(userId + businessDate.toEpochDay(), 3) ]`
+  - `0 → INFORMATIVE`, `1 → FRIENDLY`, `2 → SUGGESTIVE`
   - `MessageTone.entries` 순서는 `INFORMATIVE, FRIENDLY, SUGGESTIVE`로 고정한다(이 순서를 enum 선언 순서로 보장).
-- `userId`는 `Long`. 음수 방지를 위해 `Math.floorMod` 사용.
+- `userId`는 `Long`, `businessDate`는 발송의 논리적 날짜(§7). 음수 방지를 위해 `Math.floorMod` 사용.
+- 같은 `(userId, businessDate)`면 재실행해도 같은 톤이 나온다(재시도 시 문구 불변).
 
 ## 6. 변수 치환 / 폴백 규칙 (핵심 결정)
 

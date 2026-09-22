@@ -24,7 +24,7 @@
 
 - `domain/.../domain/model/FcmResult.kt:3` (`enum FcmResult`) — FCM 발송 결과(batch-design §6 notification_log.fcm_result).
 - `domain/.../domain/model/Holiday.kt:5` (`data class Holiday`) — 공휴일/연휴(batch-design §6 holiday). `notifyOffsetDays`: 발송 시점 오프셋(전날=-1, 당일=0), 발송일(notifyDate) = date + notifyOffsetDays. `notifyDate` 프로퍼티는 이 공휴일을 알릴 실제 발송일.
-- `domain/.../domain/model/MessageTone.kt:3` (`enum MessageTone`) — 메시지 톤. **선언 순서가 유효**(copy-spec §5): `MessageTone.entries[floorMod(userId, 3)]`.
+- `domain/.../domain/model/MessageTone.kt:3` (`enum MessageTone`) — 메시지 톤. **선언 순서가 유효**(copy-spec §5): `MessageTone.entries[floorMod(userId + businessDate.toEpochDay(), 3)]`.
 - `domain/.../domain/model/MessageVariable.kt:3` (`enum MessageVariable`) — 문구 치환 변수(copy-spec §3).
 - `domain/.../domain/model/NotificationType.kt:3` (`enum NotificationType`) — In-scope 알림 타입(copy-spec §1). 같은 파일의 기본(폴백) 톤 매핑(`:12` 부근) — 알림 타입별 기본 톤(copy-spec §1), 폴백 톤 템플릿은 변수를 필요로 하지 않는다.
 - `domain/.../domain/model/NotificationLog.kt:6` (`data class NotificationLog`) — 발송 이력(batch-design §6 notification_log). 순수 도메인 모델 — infra(jOOQ 어댑터)가 notification_log 행으로 매핑. 중복 방지 키: (userId, notificationType, businessDate)(copy-spec §7).
@@ -40,8 +40,8 @@
 - `domain/.../domain/policy/MessageRenderer.kt:9` (`object MessageRenderer`) — 문구 렌더링(copy-spec §4 템플릿 + §6 치환/폴백 규칙). 순수 함수.
   - 템플릿 테이블(클래스 상단) — copy-spec §4의 9개 (type, tone) 템플릿을 verbatim 인코딩. **두 단계 `when`** 으로 표현해 NotificationType/MessageTone enum 망라성을 컴파일러가 강제한다.
   - `:67` (`render`) 치환 규칙: (1) 변수가 필요 없으면 그대로 렌더링 → (2) 변수값이 존재하고 비어있지 않으면 치환 → (3) 변수값 없음이면 기본(폴백) 톤 템플릿으로 폴백(폴백 템플릿은 변수 불필요).
-- `domain/.../domain/policy/ToneAssignmentPolicy.kt:5` (`object ToneAssignmentPolicy`, `:6 assign`) — 유저별 결정적 톤 배정(copy-spec §5): `MessageTone.entries[floorMod(userId, 3)]`. 음수 userId는 `Math.floorMod`로 안전 처리.
-- `domain/.../domain/service/NotificationProcessor.kt:10` (`object NotificationProcessor`, `:12 decide`) — 발송 대상 처리 판정(batch-design §5 Processor). 순수 함수. 순서: ① 푸시동의 확인 → ② 당일 중복 확인 → ③ 톤 배정 + 문구 렌더링. 이력 조회 자체는 포트(NotificationLogStore) 책임이고, 여기서는 그 결과(alreadySent)를 입력으로 받는다(copy-spec §7).
+- `domain/.../domain/policy/ToneAssignmentPolicy.kt:5` (`object ToneAssignmentPolicy`, `:6 assign`) — 발송 건별 결정적 톤 배정(copy-spec §5): `MessageTone.entries[floorMod(userId + businessDate.toEpochDay(), 3)]`. 같은 유저라도 발송일이 바뀌면 톤이 순환해 같은 문구만 반복되지 않는다. 구현은 두 항을 각각 `floorMod(_, 3)`한 뒤 더해 다시 mod 한다. `userId`가 `Long.MAX_VALUE` 근처면 그냥 더할 때 오버플로로 수학적 합과 다른 인덱스가 나오기 때문(PR #34 리뷰). 음수 userId는 `Math.floorMod`로 안전 처리.
+- `domain/.../domain/service/NotificationProcessor.kt:10` (`object NotificationProcessor`, `:12 decide`) — 발송 대상 처리 판정(batch-design §5 Processor). 순수 함수. 순서: ① 당일 중복 확인 → ② 톤 배정(`businessDate` 반영) + 문구 렌더링. 동의는 읽기 쿼리가 담당하므로 여기서 재확인하지 않는다. 이력 조회 자체는 포트(NotificationLogStore) 책임이고, 여기서는 그 결과(alreadySent)를 입력으로 받는다(copy-spec §7).
 
 ## 영속성 (jOOQ)
 
