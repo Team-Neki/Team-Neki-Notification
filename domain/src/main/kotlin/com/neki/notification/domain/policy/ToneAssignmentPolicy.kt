@@ -5,5 +5,7 @@ import java.time.LocalDate
 
 object ToneAssignmentPolicy {
     fun assign(userId: Long, businessDate: LocalDate): MessageTone =
-        MessageTone.entries[Math.floorMod(userId + businessDate.toEpochDay(), 3)]
+        MessageTone.entries[
+            Math.floorMod(Math.floorMod(userId, 3) + Math.floorMod(businessDate.toEpochDay(), 3), 3),
+        ]
 }

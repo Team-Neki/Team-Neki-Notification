@@ -40,7 +40,7 @@
 - `domain/.../domain/policy/MessageRenderer.kt:9` (`object MessageRenderer`) — 문구 렌더링(copy-spec §4 템플릿 + §6 치환/폴백 규칙). 순수 함수.
   - 템플릿 테이블(클래스 상단) — copy-spec §4의 9개 (type, tone) 템플릿을 verbatim 인코딩. **두 단계 `when`** 으로 표현해 NotificationType/MessageTone enum 망라성을 컴파일러가 강제한다.
   - `:67` (`render`) 치환 규칙: (1) 변수가 필요 없으면 그대로 렌더링 → (2) 변수값이 존재하고 비어있지 않으면 치환 → (3) 변수값 없음이면 기본(폴백) 톤 템플릿으로 폴백(폴백 템플릿은 변수 불필요).
-- `domain/.../domain/policy/ToneAssignmentPolicy.kt:5` (`object ToneAssignmentPolicy`, `:6 assign`) — 발송 건별 결정적 톤 배정(copy-spec §5): `MessageTone.entries[floorMod(userId + businessDate.toEpochDay(), 3)]`. 같은 유저라도 발송일이 바뀌면 톤이 순환해 같은 문구만 반복되지 않는다. 음수 userId는 `Math.floorMod`로 안전 처리.
+- `domain/.../domain/policy/ToneAssignmentPolicy.kt:5` (`object ToneAssignmentPolicy`, `:6 assign`) — 발송 건별 결정적 톤 배정(copy-spec §5): `MessageTone.entries[floorMod(userId + businessDate.toEpochDay(), 3)]`. 같은 유저라도 발송일이 바뀌면 톤이 순환해 같은 문구만 반복되지 않는다. 구현은 두 항을 각각 `floorMod(_, 3)`한 뒤 더해 다시 mod 한다. `userId`가 `Long.MAX_VALUE` 근처면 그냥 더할 때 오버플로로 수학적 합과 다른 인덱스가 나오기 때문(PR #34 리뷰). 음수 userId는 `Math.floorMod`로 안전 처리.
 - `domain/.../domain/service/NotificationProcessor.kt:10` (`object NotificationProcessor`, `:12 decide`) — 발송 대상 처리 판정(batch-design §5 Processor). 순수 함수. 순서: ① 당일 중복 확인 → ② 톤 배정(`businessDate` 반영) + 문구 렌더링. 동의는 읽기 쿼리가 담당하므로 여기서 재확인하지 않는다. 이력 조회 자체는 포트(NotificationLogStore) 책임이고, 여기서는 그 결과(alreadySent)를 입력으로 받는다(copy-spec §7).
 
 ## 영속성 (jOOQ)

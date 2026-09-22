@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * copy-spec §5: tone = MessageTone.entries[ floorMod(userId + businessDate.toEpochDay(), 3) ]
+ * docs/prd/notification-copy-spec.md §5: tone = MessageTone.entries[ floorMod(userId + businessDate.toEpochDay(), 3) ]
  *   0 -> INFORMATIVE, 1 -> FRIENDLY, 2 -> SUGGESTIVE
  * 같은 유저라도 발송일이 바뀌면 톤이 순환한다. userId 는 Long, 음수도 floorMod 로 안전 처리.
  */
@@ -46,6 +46,13 @@ class ToneAssignmentPolicyTest {
         assertEquals(MessageTone.FRIENDLY, ToneAssignmentPolicy.assign(0L, date))
         assertEquals(MessageTone.SUGGESTIVE, ToneAssignmentPolicy.assign(1L, date))
         assertEquals(MessageTone.INFORMATIVE, ToneAssignmentPolicy.assign(2L, date))
+    }
+
+    @Test
+    fun `userId 가 Long 최대값이어도 덧셈 오버플로 없이 수학적 합의 mod 를 따른다`() {
+        // floorMod(Long.MAX_VALUE, 3) = 1, epochDay 1 -> (1 + 1) % 3 = 2 -> SUGGESTIVE.
+        // 그냥 더하면 Long.MIN_VALUE 로 감싸져 floorMod = 1 -> FRIENDLY 가 나온다.
+        assertEquals(MessageTone.SUGGESTIVE, ToneAssignmentPolicy.assign(Long.MAX_VALUE, epochDay0.plusDays(1)))
     }
 
     @Test
