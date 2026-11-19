@@ -1,5 +1,5 @@
 # Layer extraction stage
-FROM eclipse-temurin:21-jre-alpine AS builder
+FROM amazoncorretto:21-alpine@sha256:600e99e39da14b6a909027a924136c423e9334cb7347a8a77d5908bdaa3011b7 AS builder
 
 WORKDIR /app
 
@@ -11,7 +11,9 @@ COPY apps/batch/build/libs/*.jar app.jar
 RUN java -Djarmode=layertools -jar app.jar extract
 
 # Runtime stage
-FROM eclipse-temurin:21-jre-alpine
+# Java4Shell(CVE-2026-114938) 대응: eclipse-temurin 패치 이미지가 아직 게시되지 않아
+# 패치된 Corretto 21.0.13.1.2 (alpine 3.24) 를 digest 로 고정한다. Temurin 21.0.13.1+ 게시 후 되돌려도 된다.
+FROM amazoncorretto:21-alpine@sha256:600e99e39da14b6a909027a924136c423e9334cb7347a8a77d5908bdaa3011b7
 
 WORKDIR /app
 
